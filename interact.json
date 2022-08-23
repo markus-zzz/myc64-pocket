@@ -1,0 +1,154 @@
+{
+  "interact": {
+    "magic": "APF_VER_1",
+    "variables": [
+      {
+        "name": "RGB",
+        "id": 2,
+        "type": "radio",
+        "group": 100,
+        "enabled": true,
+        "persist": true,
+        "address": "0x00F0000C",
+        "defaultval": 7,
+        "value": 7
+      },
+      {
+        "name": "Red",
+        "id": 3,
+        "type": "radio",
+        "group": 100,
+        "enabled": true,
+        "persist": true,
+        "address": "0x00F0000C",
+        "value": "0x4"
+      },
+      {
+        "name": "Green",
+        "id": 4,
+        "type": "radio",
+        "group": 100,
+        "enabled": true,
+        "persist": true,
+        "address": "0x00F0000C",
+        "value": "0x2"
+      },
+      {
+        "name": "Blue",
+        "id": 5,
+        "type": "radio",
+        "group": 100,
+        "enabled": true,
+        "persist": true,
+        "address": "0x00F0000C",
+        "value": "0x1",
+        "mask": "0xFFFF0000"
+      },
+      {
+        "name": "Reset Square",
+        "id": 6,
+        "type": "action",
+        "enabled": true,
+        "address": "0x00F00010",
+        "value": 64
+      },
+      {
+        "name": "Square Pos X",
+        "id": 8,
+        "type": "slider_u32",
+        "enabled": true,
+        "persist": true,
+        "address": "0x00200000",
+        "defaultval": 100,
+        "graphical": {
+          "signed": false,
+          "min": 0,
+          "max": 320,
+          "adjust_small": 1,
+          "adjust_large": "0x10"
+        }
+      },
+      {
+        "name": "Square Pos Y",
+        "id": 9,
+        "type": "slider_u32",
+        "enabled": true,
+        "persist": true,
+        "address": "0x00200004",
+        "defaultval": 100,
+        "graphical": {
+          "signed": false,
+          "min": 0,
+          "max": 240,
+          "adjust_small": 1,
+          "adjust_large": "0x10"
+        }
+      },
+      {
+        "name": "Animation",
+        "id": 1,
+        "type": "check",
+        "enabled": true,
+        "address": "0x00100000",
+        "defaultval": 1,
+        "value": 1,
+        "mask": "0xFFFF0000"
+      },
+      {
+        "name": "Increment Frame",
+        "id": 11,
+        "type": "action",
+        "enabled": true,
+        "address": "0x00F00018",
+        "value": 0
+      },
+      {
+        "name": "Frame",
+        "id": 12,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x20000000"
+      },
+      {
+        "name": "Reset Frame",
+        "id": 10,
+        "type": "action",
+        "enabled": true,
+        "address": "0x00F00014",
+        "value": 0
+      },
+      {
+        "name": "Mask Write Debug",
+        "id": 13,
+        "type": "action",
+        "enabled": true,
+        "address": "0x00100004",
+        "value": "0x003400FF",
+        "mask": "0xFF00FFFF"
+      },
+      {
+        "name": "Debug",
+        "id": 14,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x00100004"
+      },
+      {
+        "name": "Signed Value",
+        "id": 15,
+        "type": "slider_u32",
+        "enabled": true,
+        "address": "0x00300000",
+        "persist": true,
+        "defaultval": 5000,
+        "graphical": {
+          "signed": true,
+          "min": -100000,
+          "max": 100000,
+          "adjust_small": 1,
+          "adjust_large": 1000
+        }
+      }
+    ]
+  }
+}
