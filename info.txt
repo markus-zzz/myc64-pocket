@@ -1,7 +1,0 @@
-Example Core - Interact
-
-This example demonstrates the Interact menu. The position of the square can be changed with the D-pad, or by adjusting the sliders inside the menu.
-
-* Interact options changing core registers
-* Video generation
-* User input displayed in Controls menu

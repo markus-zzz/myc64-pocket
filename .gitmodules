@@ -1,0 +1,3 @@
+[submodule "src/fpga/core/myc64"]
+	path = src/fpga/core/myc64
+	url = https://github.com/markus-zzz/myc64.git

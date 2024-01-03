@@ -1,0 +1,46 @@
+{
+    "data": {
+        "magic": "APF_VER_1",
+        "data_slots": [
+    {
+        "name": "PRG Slot #0",
+        "id": "100",
+        "required": false,
+        "deferload": true,
+        "parameters": 9, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "filename": "",
+        "extensions": ["prg2"]
+    },
+    {
+        "name": "Basic ROM",
+        "id": "200",
+        "required": true,
+        "deferload": true,
+        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "filename": "basic.bin",
+        "extensions": ["bin"],
+        "address": 0, // /dev/null
+    },
+    {
+        "name": "Character ROM",
+        "id": "201",
+        "required": true,
+        "deferload": true,
+        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "filename": "characters.bin",
+        "extensions": ["bin"],
+        "address": 0, // /dev/null
+    },
+    {
+        "name": "Kernal ROM",
+        "id": "202",
+        "required": true,
+        "deferload": true,
+        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "filename": "kernal.bin",
+        "extensions": ["bin"],
+        "address": 0, // /dev/null
+    }
+    ]
+    }
+}

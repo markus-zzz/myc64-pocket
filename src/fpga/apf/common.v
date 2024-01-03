@@ -8,10 +8,10 @@
 // laws, including, but not limited to, U.S. copyright law. All rights are
 // reserved. By using the APF code you are agreeing to the terms of the End User
 // License Agreement (“EULA”) located at [https://www.analogue.link/pocket-eula]
-// and incorporated herein by reference. To the extent any use of the APF requires 
-// application of the MIT License or the GNU General Public License and terms of 
-// this APF Software License Agreement and EULA are inconsistent with such license, 
-// the applicable terms of the MIT License or the GNU General Public License, as 
+// and incorporated herein by reference. To the extent any use of the APF requires
+// application of the MIT License or the GNU General Public License and terms of
+// this APF Software License Agreement and EULA are inconsistent with such license,
+// the applicable terms of the MIT License or the GNU General Public License, as
 // applicable, will prevail.
 
 // THE SOFTWARE IS PROVIDED "AS-IS" AND WE EXPRESSLY DISCLAIM ANY IMPLIED
@@ -50,9 +50,9 @@ reg [WIDTH-1:0] stage_3;
 
 assign rise = (WIDTH == 1) ? (o & ~stage_2) : 1'b0;
 assign fall = (WIDTH == 1) ? (~o & stage_2) : 1'b0;
-always @(posedge clk) 
+always @(posedge clk)
    {stage_2, o, stage_1} <= {o, stage_1, i};
-   
+
 endmodule
 
 
@@ -73,9 +73,9 @@ reg [WIDTH-1:0] stage_3;
 
 assign rise = (WIDTH == 1) ? (o & ~stage_3) : 1'b0;
 assign fall = (WIDTH == 1) ? (~o & stage_3) : 1'b0;
-always @(posedge clk) 
+always @(posedge clk)
    {stage_3, o, stage_2, stage_1} <= {o, stage_2, stage_1, i};
-   
+
 endmodule
 
 
@@ -88,7 +88,7 @@ module bram_block_dp #(
    input  wire [ADDR-1:0] a_addr,
    input  wire [DATA-1:0] a_din,
    output reg  [DATA-1:0] a_dout,
- 
+
    input  wire            b_clk,
    input  wire            b_wr,
    input  wire [ADDR-1:0] b_addr,
@@ -97,7 +97,7 @@ module bram_block_dp #(
 );
 
 reg [DATA-1:0] mem [(2**ADDR)-1:0];
- 
+
 always @(posedge a_clk) begin
    if(a_wr) begin
       a_dout <= a_din;
@@ -105,7 +105,7 @@ always @(posedge a_clk) begin
    end else
       a_dout <= mem[a_addr];
 end
- 
+
 always @(posedge b_clk) begin
    if(b_wr) begin
       b_dout <= b_din;
@@ -127,7 +127,7 @@ module bram_block_dp_nonstd #(
    input  wire [ADDR-1:0] a_addr,
    input  wire [DATA-1:0] a_din,
    output reg  [DATA-1:0] a_dout,
- 
+
    input  wire            b_clk,
    input  wire            b_wr,
    input  wire [ADDR-1:0] b_addr,
@@ -136,7 +136,7 @@ module bram_block_dp_nonstd #(
 );
 
 reg [DATA-1:0] mem [DEPTH-1:0];
- 
+
 always @(posedge a_clk) begin
    if(a_wr) begin
       a_dout <= a_din;
@@ -144,7 +144,7 @@ always @(posedge a_clk) begin
    end else
       a_dout <= mem[a_addr];
 end
- 
+
 always @(posedge b_clk) begin
    if(b_wr) begin
       b_dout <= b_din;

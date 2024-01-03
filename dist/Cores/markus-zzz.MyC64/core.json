@@ -2,13 +2,13 @@
     "core": {
         "magic": "APF_VER_1",
         "metadata": {
-            "platform_ids": ["ex_platform"],
-            "shortname": "Interact",
-            "description": "APF core example. Core Settings menu",
-            "author": "Example Author",
-            "url": "https://github.com/open-fpga/",
-            "version": "1.0.0",
-            "date_release": "2022-08-23"
+            "platform_ids": ["c64"],
+            "shortname": "MyC64",
+            "description": "My experimental Commodore 64 emulator",
+            "author": "markus-zzz",
+            "url": "https://github.com/markus-zzz/myc64",
+            "version": "0.0.1",
+            "date_release": "2024-01-13"
         },
         "framework": {
             "target_product": "Analogue Pocket",
