@@ -8,6 +8,20 @@
 #define OSD_DIM_Y 64
 
 #define CONT1_KEY ((volatile uint32_t *)0x20000000)
+
+#define CONT1_KEY ((volatile uint32_t *)0x20000000)
+#define CONT2_KEY ((volatile uint32_t *)0x20000004)
+#define CONT3_KEY ((volatile uint32_t *)0x20000008)
+#define CONT4_KEY ((volatile uint32_t *)0x2000000c)
+#define CONT1_JOY ((volatile uint32_t *)0x20000010)
+#define CONT2_JOY ((volatile uint32_t *)0x20000014)
+#define CONT3_JOY ((volatile uint32_t *)0x20000018)
+#define CONT4_JOY ((volatile uint32_t *)0x2000001c)
+#define CONT1_TRIG ((volatile uint32_t *)0x20000020)
+#define CONT2_TRIG ((volatile uint32_t *)0x20000024)
+#define CONT3_TRIG ((volatile uint32_t *)0x20000028)
+#define CONT4_TRIG ((volatile uint32_t *)0x2000002c)
+
 #define OSD_CTRL ((volatile uint32_t *)0x30000000)
 #define KEYB_MASK_0 ((volatile uint32_t *)0x30000004)
 #define KEYB_MASK_1 ((volatile uint32_t *)0x30000008)
@@ -59,9 +73,9 @@ int sel_row = 0;
 int sel_col = 0;
 
 const struct entry row_0[] = {
-    {"\x1f", 0x71}, {"1", 0x70}, {"2", 0x73}, {"3", 0x10}, {"4", 0x13},
-    {"5", 0x20},    {"6", 0x23}, {"7", 0x30}, {"8", 0x33}, {"9", 0x40},
-    {"0", 0x43},    {"+", 0x50}, {"-", 0x53}, {"\x1c"},    {"HOME", 0x63},
+    {"\x1f", 0x71}, {"1", 0x70}, {"2", 0x73}, {"3", 0x10},    {"4", 0x13},
+    {"5", 0x20},    {"6", 0x23}, {"7", 0x30}, {"8", 0x33},    {"9", 0x40},
+    {"0", 0x43},    {"+", 0x50}, {"-", 0x53}, {"\x1c", 0x60}, {"HOME", 0x63},
     {"DEL", 0x00},  {NULL}};
 const struct entry row_1[] = {
     {"CTRL", 0x72}, {"Q", 0x76},    {"W", 0x11},   {"E", 0x16},
@@ -80,6 +94,100 @@ const struct entry row_3[] = {
 const struct entry row_4[] = {{"SPACE", 0x74}, {NULL}};
 
 const struct entry *const rows[] = {row_0, row_1, row_2, row_3, row_4};
+
+// Subset of HID mapping copied from
+// https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2
+// Thank you very much MightyPork!
+
+const uint8_t hid2c64[] = {
+    0xff, // 0x00 // No key pressed
+    0xff, // 0x01 // Keyboard Error Roll Over
+    0xff, // 0x02 // Keyboard POST Fail
+    0xff, // 0x03 // Keyboard Error Undefined
+    0x12, // 0x04 // Keyboard a and A
+    0x34, // 0x05 // Keyboard b and B
+    0x24, // 0x06 // Keyboard c and C
+    0x22, // 0x07 // Keyboard d and D
+    0x16, // 0x08 // Keyboard e and E
+    0x25, // 0x09 // Keyboard f and F
+    0x32, // 0x0a // Keyboard g and G
+    0x35, // 0x0b // Keyboard h and H
+    0x41, // 0x0c // Keyboard i and I
+    0x42, // 0x0d // Keyboard j and J
+    0x45, // 0x0e // Keyboard k and K
+    0x52, // 0x0f // Keyboard l and L
+    0x44, // 0x10 // Keyboard m and M
+    0x47, // 0x11 // Keyboard n and N
+    0x46, // 0x12 // Keyboard o and O
+    0x51, // 0x13 // Keyboard p and P
+    0x76, // 0x14 // Keyboard q and Q
+    0x21, // 0x15 // Keyboard r and R
+    0x15, // 0x16 // Keyboard s and S
+    0x26, // 0x17 // Keyboard t and T
+    0x36, // 0x18 // Keyboard u and U
+    0x37, // 0x19 // Keyboard v and V
+    0x11, // 0x1a // Keyboard w and W
+    0x27, // 0x1b // Keyboard x and X
+    0x31, // 0x1c // Keyboard y and Y
+    0x14, // 0x1d // Keyboard z and Z
+
+    0x70, // 0x1e // Keyboard 1 and !
+    0x73, // 0x1f // Keyboard 2 and @
+    0x10, // 0x20 // Keyboard 3 and #
+    0x13, // 0x21 // Keyboard 4 and $
+    0x20, // 0x22 // Keyboard 5 and %
+    0x23, // 0x23 // Keyboard 6 and ^
+    0x30, // 0x24 // Keyboard 7 and &
+    0x33, // 0x25 // Keyboard 8 and *
+    0x40, // 0x26 // Keyboard 9 and (
+    0x43, // 0x27 // Keyboard 0 and )
+
+    0x01, // 0x28 // Keyboard Return (ENTER)
+    0x77, // 0x29 // Keyboard ESCAPE
+    0x00, // 0x2a // Keyboard DELETE (Backspace)
+    0x72, // 0x2b // Keyboard Tab
+    0x74, // 0x2c // Keyboard Spacebar
+    0x50, // 0x2d // Keyboard - and _
+    0x53, // 0x2e // Keyboard = and +
+    0x56, // 0x2f // Keyboard [ and {
+    0x61, // 0x30 // Keyboard ] and }
+    0x65, // 0x31 // Keyboard \ and |
+    0x65, // 0x32 // Keyboard Non-US # and ~
+    0x62, // 0x33 // Keyboard ; and :
+    0x55, // 0x34 // Keyboard ' and "
+    0x71, // 0x35 // Keyboard ` and ~
+    0x57, // 0x36 // Keyboard , and <
+    0x54, // 0x37 // Keyboard . and >
+    0x67, // 0x38 // Keyboard / and ?
+    0x77, // 0x39 // Keyboard Caps Lock
+
+    0x04, // 0x3a // Keyboard F1
+    0xff, // 0x3b // Keyboard F2
+    0x05, // 0x3c // Keyboard F3
+    0xff, // 0x3d // Keyboard F4
+    0x06, // 0x3e // Keyboard F5
+    0xff, // 0x3f // Keyboard F6
+    0x03, // 0x40 // Keyboard F7
+    0xff, // 0x41 // Keyboard F8
+    0xff, // 0x42 // Keyboard F9
+    0xff, // 0x43 // Keyboard F10
+    0xff, // 0x44 // Keyboard F11
+    0xff, // 0x45 // Keyboard F12
+
+    0xff, // 0x46 // Keyboard Print Screen
+    0xff, // 0x47 // Keyboard Scroll Lock
+    0xff, // 0x48 // Keyboard Pause
+    0x60, // 0x49 // Keyboard Insert
+    0x63, // 0x4a // Keyboard Home
+    0xff, // 0x4b // Keyboard Page Up
+    0x66, // 0x4c // Keyboard Delete Forward
+    0xff, // 0x4d // Keyboard End
+    0xff, // 0x4e // Keyboard Page Down
+    0x02, // 0x4f // Keyboard Right Arrow
+    0xff, // 0x50 // Keyboard Left Arrow
+    0x07, // 0x51 // Keyboard Down Arrow
+    0xff, // 0x52 // Keyboard Up Arrow
+};
 
 unsigned row_length(unsigned row_idx) {
   const struct entry *p = rows[row_idx];
@@ -284,59 +392,88 @@ int main(void) {
   uint32_t keyb_p = 0;
   uint32_t keyb = 0;
 
-  int osd_ctrl = 0;
+  int osd_keyb_on = 0;
 
   sel_row = 0;
   sel_col = 0;
 
   while (1) {
+#define KEYB_MASK_KEY(x)                                                       \
+  keyb_mask |= 1ULL << ((((x) >> 4) & 0xf) * 8 + ((x)&0xf))
     uint64_t keyb_mask = 0;
     keyb = *CONT1_KEY;
 
     if (KEYB_POSEDGE(face_select)) {
-      osd_ctrl = !osd_ctrl;
-      *OSD_CTRL = osd_ctrl;
-    } else if (KEYB_POSEDGE(dpad_up)) {
-      if (sel_row > 0)
-        sel_row--;
-      sel_col = MIN(sel_col, row_length(sel_row) - 1);
-    } else if (KEYB_POSEDGE(dpad_down)) {
-      if (sel_row < sizeof(rows) / sizeof(rows[0]) - 1)
-        sel_row++;
-      sel_col = MIN(sel_col, row_length(sel_row) - 1);
-    } else if (KEYB_POSEDGE(dpad_left)) {
-      if (sel_col > 0)
-        sel_col--;
-    } else if (KEYB_POSEDGE(dpad_right)) {
-      sel_col++;
-      sel_col = MIN(sel_col, row_length(sel_row) - 1);
-    } else if (KEYB_DOWN(face_a)) {
-      const struct entry *row = rows[sel_row];
-      const struct entry *e = &row[sel_col];
-      uint8_t pa = e->ports >> 4;
-      uint8_t pb = e->ports & 0xf;
-      keyb_mask = 1ULL << (pa * 8 + pb);
+      osd_keyb_on = !osd_keyb_on;
+      *OSD_CTRL = osd_keyb_on;
     }
 
-    if (KEYB_DOWN(trig_l1)) {
-      // Apply LSHIFT
-      uint8_t pa = 6;
-      uint8_t pb = 4;
-      keyb_mask |= (1ULL << (pa * 8 + pb));
+    if (osd_keyb_on) {
+      if (KEYB_POSEDGE(dpad_up)) {
+        if (sel_row > 0)
+          sel_row--;
+        sel_col = MIN(sel_col, row_length(sel_row) - 1);
+      } else if (KEYB_POSEDGE(dpad_down)) {
+        if (sel_row < sizeof(rows) / sizeof(rows[0]) - 1)
+          sel_row++;
+        sel_col = MIN(sel_col, row_length(sel_row) - 1);
+      } else if (KEYB_POSEDGE(dpad_left)) {
+        if (sel_col > 0)
+          sel_col--;
+      } else if (KEYB_POSEDGE(dpad_right)) {
+        sel_col++;
+        sel_col = MIN(sel_col, row_length(sel_row) - 1);
+      }
+
+      if (KEYB_DOWN(face_a)) {
+        const struct entry *row = rows[sel_row];
+        const struct entry *e = &row[sel_col];
+        KEYB_MASK_KEY(e->ports);
+      }
+
+      if (KEYB_DOWN(trig_l1)) {
+        // Apply LSHIFT
+        KEYB_MASK_KEY(0x17);
+      }
     }
 
     if (KEYB_POSEDGE(face_start)) {
       load_prg(100);
     }
 
-#if 0
-    if (1) {
-      volatile uint8_t *p = ((volatile uint8_t *)0x90000000);
-      unsigned offset = 10;
-      for (unsigned i = 0; i < 8; i++)
-      offset = put_hex8(offset, 10, p[i], 0) + 2;
+    if (1) { // (*CONT3_KEY >> 28) == 0x4) { // Docked keyboard
+      uint8_t hid_mod = *CONT3_KEY >> 8;
+      uint8_t hid_keys[6];
+      hid_keys[0] = *CONT3_JOY >> 24;
+      hid_keys[1] = *CONT3_JOY >> 16;
+      hid_keys[2] = *CONT3_JOY >> 8;
+      hid_keys[3] = *CONT3_JOY >> 0;
+      hid_keys[4] = *CONT3_TRIG >> 8;
+      hid_keys[5] = *CONT3_TRIG >> 0;
+      for (unsigned i = 0; i < 6; i++) {
+        if (hid_keys[i] < sizeof(hid2c64)) {
+          uint8_t ports = hid2c64[hid_keys[i]];
+          if (ports == 0xff)
+            continue;
+          KEYB_MASK_KEY(ports);
+        }
+      }
+
+      // https://wiki.osdev.org/USB_Human_Interface_Devices
+      if (hid_mod & (1 << 0)) {
+        // The Commodore key
+        KEYB_MASK_KEY(0x75);
+      }
+      if (hid_mod & (1 << 1)) {
+        // Left shift
+        KEYB_MASK_KEY(0x17);
+      }
+      if (hid_mod & (1 << 5)) {
+        // Right shift
+        KEYB_MASK_KEY(0x64);
+      }
     }
-#else
+
     // Draw keyboard to OSD buffer
     for (int i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
       const struct entry *row = rows[i];
@@ -350,7 +487,6 @@ int main(void) {
         offset += 2;
       }
     }
-#endif
 
     *KEYB_MASK_0 = keyb_mask;
     *KEYB_MASK_1 = keyb_mask >> 32;

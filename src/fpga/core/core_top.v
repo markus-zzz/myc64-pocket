@@ -438,14 +438,32 @@ module core_top (
   assign pll_core_locked = 1;
 `endif
 
+  // XXX: This is not the right way to do clock domain crossing (don't put
+  // syncs on the bus signals)!
   wire [15:0] cont1_key_s;
-  synch_3 #(
-      .WIDTH(16)
-  ) s_cont1_key (
-      cont1_key,
-      cont1_key_s,
-      video_rgb_clock
-  );
+  wire [15:0] cont2_key_s;
+  wire [15:0] cont3_key_s;
+  wire [15:0] cont4_key_s;
+  wire [31:0] cont1_joy_s;
+  wire [31:0] cont2_joy_s;
+  wire [31:0] cont3_joy_s;
+  wire [31:0] cont4_joy_s;
+  wire [15:0] cont1_trig_s;
+  wire [15:0] cont2_trig_s;
+  wire [15:0] cont3_trig_s;
+  wire [15:0] cont4_trig_s;
+  synch_3 #(.WIDTH(32)) s_cont1_key (cont1_key, cont1_key_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont2_key (cont2_key, cont2_key_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont3_key (cont3_key, cont3_key_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont4_key (cont4_key, cont4_key_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont1_joy (cont1_joy, cont1_joy_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont2_joy (cont2_joy, cont2_joy_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont3_joy (cont3_joy, cont3_joy_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont4_joy (cont4_joy, cont4_joy_s, video_rgb_clock);
+  synch_3 #(.WIDTH(16)) s_cont1_trig (cont1_trig, cont1_trig_s, video_rgb_clock);
+  synch_3 #(.WIDTH(16)) s_cont2_trig (cont2_trig, cont2_trig_s, video_rgb_clock);
+  synch_3 #(.WIDTH(16)) s_cont3_trig (cont3_trig, cont3_trig_s, video_rgb_clock);
+  synch_3 #(.WIDTH(16)) s_cont4_trig (cont4_trig, cont4_trig_s, video_rgb_clock);
 
   wire [23:0] c64_color_rgb;
   wire [15:0] sid_wave;
@@ -535,13 +553,24 @@ module core_top (
   assign ram_wstrb = osd_ram_access ? 4'b0000 : cpu_mem_wstrb;
 
   always @* begin
-    case (cpu_mem_addr[31:28])
-      4'h0: cpu_mem_rdata = rom_rdata;
-      4'h1: cpu_mem_rdata = ram_rdata;
-      4'h2: cpu_mem_rdata = cont1_key_s;
-      4'h4: cpu_mem_rdata = bridge_rdata;
-      4'h7: cpu_mem_rdata = bridge_dpram_rdata;
-      4'h9: cpu_mem_rdata = dataslot_table_rd_data_cpu;
+    casex (cpu_mem_addr)
+      32'h0xxx_xxxx: cpu_mem_rdata = rom_rdata;
+      32'h1xxx_xxxx: cpu_mem_rdata = ram_rdata;
+      32'h2000_0000: cpu_mem_rdata = cont1_key_s;
+      32'h2000_0004: cpu_mem_rdata = cont2_key_s;
+      32'h2000_0008: cpu_mem_rdata = cont3_key_s;
+      32'h2000_000c: cpu_mem_rdata = cont4_key_s;
+      32'h2000_0010: cpu_mem_rdata = cont1_joy_s;
+      32'h2000_0014: cpu_mem_rdata = cont2_joy_s;
+      32'h2000_0018: cpu_mem_rdata = cont3_joy_s;
+      32'h2000_001c: cpu_mem_rdata = cont4_joy_s;
+      32'h2000_0020: cpu_mem_rdata = cont1_trig_s;
+      32'h2000_0024: cpu_mem_rdata = cont2_trig_s;
+      32'h2000_0028: cpu_mem_rdata = cont3_trig_s;
+      32'h2000_002c: cpu_mem_rdata = cont4_trig_s;
+      32'h4xxx_xxxx: cpu_mem_rdata = bridge_rdata;
+      32'h7xxx_xxxx: cpu_mem_rdata = bridge_dpram_rdata;
+      32'h9xxx_xxxx: cpu_mem_rdata = dataslot_table_rd_data_cpu;
       default: cpu_mem_rdata = 0;
     endcase
   end

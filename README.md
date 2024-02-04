@@ -59,6 +59,10 @@ be loaded into C64 memory when the **right-of-analogue** button is pressed.
 - **right-of-analogue** - Load PRG slot #0 into C64 RAM
 - **left-trig** - Shift modifier for keyboard
 
+A physical keyboard is supported while docked. The keyboard is expected to show
+up on the third input (i.e. `cont3_joy`). For details on the key mapping see
+table `hid2c64` in source file `src/bios/main.c`.
+
 ## Build instructions
 
 Build the BIOS for the housekeeping CPU
