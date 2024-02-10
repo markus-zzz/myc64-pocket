@@ -7,7 +7,7 @@
         "id": "100",
         "required": false,
         "deferload": true,
-        "parameters": 9, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "parameters": 9,
         "filename": "",
         "extensions": ["prg2"]
     },
@@ -16,30 +16,30 @@
         "id": "200",
         "required": true,
         "deferload": true,
-        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "parameters": 8,
         "filename": "basic.bin",
         "extensions": ["bin"],
-        "address": 0, // /dev/null
+        "address": 0
     },
     {
         "name": "Character ROM",
         "id": "201",
         "required": true,
         "deferload": true,
-        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "parameters": 8,
         "filename": "characters.bin",
         "extensions": ["bin"],
-        "address": 0, // /dev/null
+        "address": 0
     },
     {
         "name": "Kernal ROM",
         "id": "202",
         "required": true,
         "deferload": true,
-        "parameters": 8, // User-reloadable (bit 0), Read-only (bit 3), Persist (bit 9)
+        "parameters": 8,
         "filename": "kernal.bin",
         "extensions": ["bin"],
-        "address": 0, // /dev/null
+        "address": 0
     }
     ]
     }
