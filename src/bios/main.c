@@ -293,12 +293,12 @@ void load_prg(uint16_t slot_id) {
   *TARGET_20 = slot_id; // slot-id
   *TARGET_24 = 0;       // slot-offset
   *TARGET_28 = 0x70000000;
-  *TARGET_2C = 4; // length
+  *TARGET_2C = 2; // length
   *TARGET_0 = 0x636D0180;
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
-  uint16_t PrgSize = (p[1] << 8) | p[0];
-  uint16_t PrgStartAddr = (p[3] << 8) | p[2];
+  uint16_t PrgSize = slot_length - 2;
+  uint16_t PrgStartAddr = (p[1] << 8) | p[0];
 
   // Update various zero page pointers to adjust for loaded program.
   // - Pointer to beginning of variable area. (End of program plus 1.)
@@ -321,7 +321,7 @@ void load_prg(uint16_t slot_id) {
   volatile uint8_t *q = &RAM[PrgStartAddr];
 
   const uint32_t buf_size = 256;
-  uint32_t slot_offset = 4;
+  uint32_t slot_offset = 2;
   uint32_t idx = 0;
 
   while (slot_offset < slot_length) {
@@ -378,7 +378,6 @@ int main(void) {
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
 
-#if 1
   // Load BASIC ROM
   load_rom(200, (volatile uint8_t *)0x50010000, 8192);
   // Load CHAR ROM
@@ -387,7 +386,6 @@ int main(void) {
   load_rom(202, (volatile uint8_t *)0x50030000, 8192);
 
   *C64_CTRL = 1; // Release reset for MyC64
-#endif
 
   uint32_t keyb_p = 0;
   uint32_t keyb = 0;
@@ -474,17 +472,19 @@ int main(void) {
       }
     }
 
-    // Draw keyboard to OSD buffer
-    for (int i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
-      const struct entry *row = rows[i];
-      int offset = 0;
-      for (int j = 0; row[j].str != NULL; j++) {
-        const char *str = row[j].str;
-        for (int k = 0; str[k] != '\0'; k++) {
-          put_char(offset, 2 + i * 10, str[k], sel_row == i && sel_col == j);
-          offset += 8;
+    if (osd_keyb_on) {
+      // Draw keyboard to OSD buffer
+      for (int i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        const struct entry *row = rows[i];
+        int offset = 0;
+        for (int j = 0; row[j].str != NULL; j++) {
+          const char *str = row[j].str;
+          for (int k = 0; str[k] != '\0'; k++) {
+            put_char(offset, 2 + i * 10, str[k], sel_row == i && sel_col == j);
+            offset += 8;
+          }
+          offset += 2;
         }
-        offset += 2;
       }
     }
 

@@ -471,22 +471,106 @@ module core_top (
   myc64_top u_myc64 (
       .rst(~c64_ctrl),
       .clk(video_rgb_clock),
-      .o_color_rgb(c64_color_rgb),
-      .o_color_idx(),
+      .o_vid_rgb(c64_color_rgb),
       .o_vid_hsync(video_hs),
       .o_vid_vsync(video_vs),
       .o_vid_en(video_de),
       .o_wave(sid_wave),
       .i_keyboard_mask(keyboard_mask),
-      .i_ext_addr(ext_addr),
-      .i_ext_data(ext_data),
-      .i_ext_we(ext_ram_we),
-      .o_ext_ready(ext_ready),
-      .i_ext_rom_addr(ext_addr),
-      .i_ext_rom_data(ext_data),
-      .i_ext_rom_basic_we(ext_rom_basic_we),
-      .i_ext_rom_char_we(ext_rom_char_we),
-      .i_ext_rom_kernal_we(ext_rom_kernal_we)
+      .o_bus_addr(c64_bus_addr),
+      .i_rom_basic_data(c64_rom_basic_data),
+      .i_rom_char_data(c64_rom_char_data),
+      .i_rom_kernal_data(c64_rom_kernal_data),
+      .i_ram_main_data(c64_ram_rdata),
+      .o_ram_main_data(c64_ram_wdata),
+      .o_ram_main_we(c64_ram_we),
+      .o_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
+      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
+  );
+
+  wire [15:0] c64_bus_addr;
+  wire [7:0] c64_ram_rdata;
+  wire [7:0] c64_ram_wdata;
+  wire c64_ram_we;
+
+  reg ext_ram_we_r;
+  wire ext_ram_ready;
+
+  wire c64_clk_1mhz_ph1_en;
+  wire c64_clk_1mhz_ph2_en;
+
+  assign ext_ram_ready = ext_ram_we_r & c64_clk_1mhz_ph1_en;
+
+  // For better or worse the memory signals need to be stable for an entire ph2
+  // cycle.
+  always @(posedge clk) begin
+    if (c64_clk_1mhz_ph2_en) begin
+      ext_ram_we_r <= ext_ram_we;
+    end
+    else if (c64_clk_1mhz_ph1_en) begin
+      ext_ram_we_r <= 0;
+    end
+  end
+
+
+
+  spram #(
+      .aw(16),
+      .dw(8)
+  ) u_c64_main_ram (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_ram_we_r ? ext_addr : c64_bus_addr),
+      .do  (c64_ram_rdata),
+      .di  (ext_ram_we_r ? ext_data : c64_ram_wdata),
+      .we  (ext_ram_we_r | c64_ram_we)
+  );
+
+  wire [7:0] c64_rom_char_data;
+  spram #(
+      .aw(12),
+      .dw(8)
+  ) u_c64_char_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_char_we ? ext_addr : c64_bus_addr),
+      .do  (c64_rom_char_data),
+      .di  (ext_data),
+      .we  (ext_rom_char_we)
+  );
+
+  wire [7:0] c64_rom_basic_data;
+  spram #(
+      .aw(13),
+      .dw(8)
+  ) u_c64_basic_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_basic_we ? ext_addr : c64_bus_addr),
+      .do  (c64_rom_basic_data),
+      .di  (ext_data),
+      .we  (ext_rom_basic_we)
+  );
+
+  wire [7:0] c64_rom_kernal_data;
+  spram #(
+      .aw(13),
+      .dw(8)
+  ) u_c64_kernal_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_kernal_we ? ext_addr : c64_bus_addr),
+      .do  (c64_rom_kernal_data),
+      .di  (ext_data),
+      .we  (ext_rom_kernal_we)
   );
 
   wire cpu_mem_valid;
@@ -505,9 +589,8 @@ module core_top (
   wire [31:0] osd_mem_addr;
 
   reg [15:0] ext_addr;
-  reg [7:0] ext_data;
+  reg [7:0] ext_data; // XXX: Rename to cpu_mem_wdata_byte?
   wire ext_ram_we;
-  wire ext_ready;
   wire ext_rom_basic_we;
   wire ext_rom_char_we;
   wire ext_rom_kernal_we;
@@ -612,7 +695,7 @@ module core_top (
         32'h2xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h3xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h4xxx_xxxx: cpu_mem_ready <= bridge_ack_pulse;
-        32'h5000_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid & ext_ready;
+        32'h5000_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid & ext_ram_ready;
         32'h5xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h7xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h9xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;

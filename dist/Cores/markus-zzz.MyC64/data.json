@@ -9,7 +9,7 @@
         "deferload": true,
         "parameters": 9,
         "filename": "",
-        "extensions": ["prg2"]
+        "extensions": ["prg"]
     },
     {
         "name": "Basic ROM",

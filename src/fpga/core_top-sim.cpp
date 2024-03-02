@@ -18,9 +18,13 @@
  *
  */
 
+#include "CLI11.hpp"
+
 #include "Vcore_top.h"
+#include "Vcore_top_core_top.h"
+#include "Vcore_top_spram__A10_D8.h"
 #include "verilated.h"
-#include "verilated_vcd_c.h"
+#include "verilated_fst_c.h"
 #include <assert.h>
 #include <fstream>
 #include <functional>
@@ -31,17 +35,16 @@
 #include <string.h>
 #include <vector>
 
-#include "supermon64.h"
-
-#include "core/myc64/roms/kernal.h"
 #include "core/myc64/roms/basic.h"
 #include "core/myc64/roms/characters.h"
+#include "core/myc64/roms/kernal.h"
 
-static Vcore_top *dut = NULL;
-static VerilatedVcdC *trace = NULL;
-static unsigned TraceTick = 0;
+static unsigned trace_begin_frame = 0;
+static std::string prg_path;
+static bool dump_video = false;
+static bool dump_ram = false;
 
-double sc_time_stamp() { return TraceTick; }
+static std::unique_ptr<Vcore_top> dut;
 
 std::map<uint16_t, std::pair<const uint8_t *, uint32_t>> dataslots;
 
@@ -72,6 +75,9 @@ class ClockManager {
     return FirstClock;
   }
 
+  VerilatedFstC *m_trace = nullptr;
+  bool m_trace_enabled = false;
+
 public:
   void addClock(CData *clk_net, double freq, uint64_t offset_ps,
                 ClockCB CallBack = std::function<void(void)>()) {
@@ -79,22 +85,41 @@ public:
   }
   void doWork() {
     Clock *C = getNext();
-    dut->eval();
-    dut->eval();
-    if (trace)
-      trace->dump(m_CurrTimePS);
     m_CurrTimePS = C->m_next_time_ps;
     *C->m_clk_net = !(*C->m_clk_net);
     dut->eval();
     dut->eval();
-    if (trace)
-      trace->dump(m_CurrTimePS);
+    if (m_trace_enabled)
+      m_trace->dump(m_CurrTimePS);
     C->m_next_time_ps += C->m_cycle_time_ps / 2;
 
     if (C->m_CallBack)
       C->m_CallBack();
   }
+  uint64_t CurrTimePS() { return m_CurrTimePS; }
+
+  void setupTrace(const std::string &out_path,
+                  const std::vector<std::string> &trace_modules) {
+    m_trace = new VerilatedFstC;
+    m_trace->set_time_unit("1ps");
+    m_trace->set_time_resolution("1ps");
+    for (auto &trace_module : trace_modules) {
+      m_trace->dumpvars(1, trace_module);
+    }
+    dut->trace(m_trace, 99);
+    m_trace->open(out_path.c_str());
+  }
+  void enableTrace() {
+    if (m_trace)
+      m_trace_enabled = true;
+  }
+  void flushTrace() {
+    if (m_trace && m_trace_enabled)
+      m_trace->flush();
+  }
 };
+
+static ClockManager CM;
 
 static void put_pixel(GdkPixbuf *pixbuf, int x, int y, guchar red, guchar green,
                       guchar blue) {
@@ -156,17 +181,58 @@ struct VICIIFrameDumper {
       m_HCntr++;
 
       if (FrameDone) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "vicii-%03d.png", m_FrameIdx++);
-        gdk_pixbuf_save(m_FramePixBuf, buf, "png", NULL, NULL);
-        printf("%s\n", buf);
+        if (dump_video) {
+          char buf[32];
+          snprintf(buf, sizeof(buf), "vicii-%04d.png", m_FrameIdx);
+          gdk_pixbuf_save(m_FramePixBuf, buf, "png", NULL, NULL);
+          printf("%s\n", buf);
+        }
+
+        if (dump_ram) {
+          uint8_t *ram = &dut->core_top->u_c64_main_ram->mem[0];
+          char buf[32];
+          snprintf(buf, sizeof(buf), "ram-%04d.bin", m_FrameIdx);
+          std::fstream file(buf,
+                            std::ios::out | std::ios::binary | std::ios::trunc);
+          file.write(reinterpret_cast<char *>(ram), 0x10000);
+          file.close();
+          printf("%s\n", buf);
+        }
+
+        if (!prg_path.empty()) {
+          switch (m_FrameIdx) {
+          default:
+            dut->cont1_key = 0;
+            dut->cont3_joy = 0;
+            break;
+          case 125:
+            dut->cont1_key = (1UL << 15); // right-of-analogue
+            break;
+          case 150:
+            dut->cont3_joy = 0x15; // R
+            break;
+          case 151:
+            dut->cont3_joy = 0x18; // U
+            break;
+          case 152:
+            dut->cont3_joy = 0x11; // N
+            break;
+          case 153:
+            dut->cont3_joy = 0x28; // <RETURN>
+            break;
+          }
+        }
+
+        CM.flushTrace();
+        m_FrameIdx++;
       }
     }
   }
 
 private:
   void HandleBridge() {
- //   if (m_FrameIdx < 150) return;
+    if (m_FrameIdx == trace_begin_frame)
+      CM.enableTrace();
     dut->bridge_addr = 0;
     dut->bridge_rd = 0;
     dut->bridge_wr = 0;
@@ -174,9 +240,33 @@ private:
 
     switch (bridge_state) {
     case 0: // Wait for reset to release
-      if (dut->reset_n)
-        bridge_state = 1;
+      if (dut->reset_n) {
+        cntr = 0;
+        ds_it = dataslots.begin();
+        bridge_state = 100;
+      }
       break;
+    case 100: // Write Data Slot Size table (slot id)
+      if (ds_it == dataslots.end()) {
+        bridge_state = 1;
+      } else {
+        auto &dse = *ds_it;
+        dut->bridge_addr = 0xf8002000 + cntr * 8 + 0;
+        dut->bridge_wr = 1;
+        dut->bridge_wr_data = dse.first;
+        bridge_state = 101;
+      }
+      break;
+    case 101: { // Write Data Slot Size table (size)
+      auto &dse = *ds_it;
+      dut->bridge_addr = 0xf8002000 + cntr * 8 + 4;
+      dut->bridge_wr = 1;
+      dut->bridge_wr_data = dse.second.second;
+      cntr++;
+      ds_it++;
+      bridge_state = 100;
+      break;
+    }
     case 1: // Write status OK
       dut->bridge_addr = 0xf8001000;
       dut->bridge_wr = 1;
@@ -224,7 +314,7 @@ private:
         auto *data = dataslots[ds_read_slot_id].first;
         for (unsigned i = 0; i < 4; i++)
           dut->bridge_wr_data |= data[ds_read_slot_offset + ds_read_cntr + i]
-                               << (8 * (3 - i));
+                                 << (8 * (3 - i));
         dut->bridge_wr = 1;
         ds_read_cntr += 4;
       } else {
@@ -251,37 +341,56 @@ private:
   uint32_t ds_read_bridge_address;
   uint32_t ds_read_length;
   uint32_t ds_read_cntr;
+
+  unsigned cntr = 0;
+  decltype(dataslots)::iterator ds_it;
 };
 
+double sc_time_stamp() { return CM.CurrTimePS(); }
+
 int main(int argc, char *argv[]) {
-  bool TraceOn = false;
+  std::string trace_path;
+  std::vector<std::string> trace_modules;
+  CLI::App app{"Verilator based MyC64-pocket simulator"};
+  app.add_flag("--dump-video", dump_video, "Dump video output as .png");
+  app.add_flag("--dump-ram", dump_ram, "Dump RAM after each frame");
+  app.add_option("--trace", trace_path, ".fst trace output");
+  app.add_option("--trace-begin-frame", trace_begin_frame,
+                 "Start trace on given frame")
+      ->needs("--trace");
+  app.add_option("--trace-modules", trace_modules, "Specify modules to trace")
+      ->needs("--trace");
+  app.add_option("--prg", prg_path, ".prg file to put in slot")
+      ->check(CLI::ExistingFile);
+  CLI11_PARSE(app, argc, argv);
+
   // Initialize Verilators variables
   Verilated::commandArgs(argc, argv);
-  Verilated::traceEverOn(TraceOn);
+  Verilated::traceEverOn(!trace_path.empty());
 
-  dut = new Vcore_top;
-
-  if (TraceOn) {
-    trace = new VerilatedVcdC;
-    trace->set_time_unit("1ps");
-    trace->set_time_resolution("1ps");
-    dut->trace(trace, 99);
-    trace->open("dump.vcd");
-  }
+  dut = std::make_unique<Vcore_top>();
 
   dataslots[200] = std::make_pair(basic_bin, basic_bin_len);
   dataslots[201] = std::make_pair(characters_bin, characters_bin_len);
   dataslots[202] = std::make_pair(kernal_bin, kernal_bin_len);
 
+  std::vector<uint8_t> prg_slot;
+  if (!prg_path.empty()) {
+    std::ifstream instream(prg_path, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
+                              std::istreambuf_iterator<char>());
+    prg_slot = std::move(data);
+    dataslots[100] = std::make_pair(prg_slot.data(), prg_slot.size());
+  }
+
   VICIIFrameDumper myVICIIFrameDumper;
 
-  ClockManager CM;
-  CM.addClock(&dut->clk_74a, 15e6, 0, myVICIIFrameDumper);
+  CM.addClock(&dut->clk_74a, 8e6, 0, myVICIIFrameDumper);
+  if (!trace_path.empty())
+    CM.setupTrace(trace_path, trace_modules);
 
   dut->reset_n = 0;
   dut->eval();
-  if (trace)
-    trace->dump(0);
 
   unsigned idx = 0;
   while (!Verilated::gotFinish()) {
@@ -289,8 +398,6 @@ int main(int argc, char *argv[]) {
       dut->reset_n = 1;
     }
     CM.doWork();
-    if (trace)
-      trace->flush();
   }
 
   return 0;
