@@ -739,10 +739,12 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 # ---------------------------
 set_global_assignment -name SEED 2
 set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
+set_global_assignment -name VHDL_FILE core/myc64/rtl/myc64/T65/T65_Pack.vhd
+set_global_assignment -name VHDL_FILE core/myc64/rtl/myc64/T65/T65_MCode.vhd
+set_global_assignment -name VHDL_FILE core/myc64/rtl/myc64/T65/T65_ALU.vhd
+set_global_assignment -name VHDL_FILE core/myc64/rtl/myc64/T65/T65.vhd
 set_global_assignment -name VERILOG_FILE core/myc64/rtl/myc64/sid.v
 set_global_assignment -name VERILOG_FILE core/myc64/rtl/myc64/myc64.v
-set_global_assignment -name VERILOG_FILE core/myc64/rtl/myc64/cpu.v
-set_global_assignment -name VERILOG_FILE core/myc64/rtl/myc64/ALU.v
 set_global_assignment -name VERILOG_FILE core/sprom.v
 set_global_assignment -name VERILOG_FILE core/spram.v
 set_global_assignment -name VERILOG_FILE core/picorv32.v

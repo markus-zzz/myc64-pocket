@@ -477,6 +477,8 @@ module core_top (
       .o_vid_en(video_de),
       .o_wave(sid_wave),
       .i_keyboard_mask(keyboard_mask),
+      .i_joystick1(/* NC */),
+      .i_joystick2(cont1_key_s[4:0]),
       .o_bus_addr(c64_bus_addr),
       .i_rom_basic_data(c64_rom_basic_data),
       .i_rom_char_data(c64_rom_char_data),

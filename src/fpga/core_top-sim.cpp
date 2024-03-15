@@ -43,6 +43,7 @@ static unsigned trace_begin_frame = 0;
 static std::string prg_path;
 static bool dump_video = false;
 static bool dump_ram = false;
+static unsigned exit_frame = 0;
 
 static std::unique_ptr<Vcore_top> dut;
 
@@ -224,6 +225,9 @@ struct VICIIFrameDumper {
         }
 
         CM.flushTrace();
+        if (exit_frame != 0 && exit_frame == m_FrameIdx) {
+          exit(0);
+        }
         m_FrameIdx++;
       }
     }
@@ -354,6 +358,7 @@ int main(int argc, char *argv[]) {
   CLI::App app{"Verilator based MyC64-pocket simulator"};
   app.add_flag("--dump-video", dump_video, "Dump video output as .png");
   app.add_flag("--dump-ram", dump_ram, "Dump RAM after each frame");
+  app.add_option("--exit-frame", exit_frame, "Exit frame");
   app.add_option("--trace", trace_path, ".fst trace output");
   app.add_option("--trace-begin-frame", trace_begin_frame,
                  "Start trace on given frame")

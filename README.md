@@ -4,11 +4,7 @@ This is a go at wrapping up my very much work in progress C64 emulator for the
 Analogue Pocket. The emulator core itself
 [MyC64](https://github.com/markus-zzz/myc64) was something that I started
 working on as a hobby project during summer of 2020. Sporadically over the years I have
-put some effort into it but overall **it is very far from complete**.
-
-In its current state the emulator **will not support running any games** but it
-does boot up into BASIC and it is possible to load `.prg` files such as
-Supermon64 and some PSID64 SID players.
+put some effort into it but overall **it is quite far from complete**.
 
 ## Setup
 
@@ -37,14 +33,20 @@ they then need to be placed in `/media/Assets/c64/common/` as follows
 
 ### User PRGs
 
-As of Analogue firmware version 2.2 normal C64 '.prg' files can be placed in
-'/media/Assets/c64/common/' and loaded.
+As of Analogue firmware version 2.2 normal C64 `.prg` files can be placed in
+`/media/Assets/c64/common/` and loaded.
 
 Suggestions are [Supermon+64](https://github.com/jblang/supermon64) and the
 [High Voltage SID Collection (HVSC)](https://www.hvsc.c64.org/) converted to
 [PSID64 format](https://boswme.home.xs4all.nl/HVSC/HVSC80_PSID64_packed.7z).
 
-Pretty much anything else can be assumed not to work.
+The following games seem to work somewhat okay but others might too (have not
+really tested that many).
+```
+$ md5sum *.prg
+e8b3602ed47f3fa0fa057446a073291d  Bubble Bobble (1987)(Firebird Software).prg
+ffc9147f4e436e75d6bc316555ac1fbf  Dan Dare 2 - Mekon's Revenge (1988)(Virgin Games)[cr Stack].prg
+```
 
 ## Usage
 
