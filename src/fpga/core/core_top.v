@@ -468,8 +468,40 @@ module core_top (
   wire [23:0] c64_color_rgb;
   wire [15:0] sid_wave;
 
+  reg [4:0] joystick1;
+
+  always @* begin
+    case (c64_ctrl[2:1])
+      2'b01: begin
+        joystick1 = cont1_key_s[4:0];
+      end
+      2'b10: begin
+        joystick1 = cont2_key_s[4:0];
+      end
+      default: begin
+        joystick1 = 0;
+      end
+    endcase
+  end
+
+  reg [4:0] joystick2;
+
+  always @* begin
+    case (c64_ctrl[4:3])
+      2'b01: begin
+        joystick2 = cont1_key_s[4:0];
+      end
+      2'b10: begin
+        joystick2 = cont2_key_s[4:0];
+      end
+      default: begin
+        joystick2 = 0;
+      end
+    endcase
+  end
+
   myc64_top u_myc64 (
-      .rst(~c64_ctrl),
+      .rst(~c64_ctrl[0]),
       .clk(video_rgb_clock),
       .o_vid_rgb(c64_color_rgb),
       .o_vid_hsync(video_hs),
@@ -477,8 +509,8 @@ module core_top (
       .o_vid_en(video_de),
       .o_wave(sid_wave),
       .i_keyboard_mask(keyboard_mask),
-      .i_joystick1(/* NC */),
-      .i_joystick2(cont1_key_s[4:0]),
+      .i_joystick1(joystick1),
+      .i_joystick2(joystick2),
       .o_bus_addr(c64_bus_addr),
       .i_rom_basic_data(c64_rom_basic_data),
       .i_rom_char_data(c64_rom_char_data),
@@ -653,6 +685,7 @@ module core_top (
       32'h2000_0024: cpu_mem_rdata = cont2_trig_s;
       32'h2000_0028: cpu_mem_rdata = cont3_trig_s;
       32'h2000_002c: cpu_mem_rdata = cont4_trig_s;
+      32'h3000_000c: cpu_mem_rdata = c64_ctrl;
       32'h4xxx_xxxx: cpu_mem_rdata = bridge_rdata;
       32'h7xxx_xxxx: cpu_mem_rdata = bridge_dpram_rdata;
       32'h9xxx_xxxx: cpu_mem_rdata = dataslot_table_rd_data_cpu;
@@ -667,11 +700,11 @@ module core_top (
       osd_ctrl <= cpu_mem_wdata[0];
   end
 
-  reg c64_ctrl;
+  reg [4:0] c64_ctrl;
   always @(posedge clk) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
-      c64_ctrl <= cpu_mem_wdata[0];
+      c64_ctrl <= cpu_mem_wdata[4:0];
   end
 
   reg [63:0] keyboard_mask;

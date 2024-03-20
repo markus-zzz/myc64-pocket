@@ -1,0 +1,148 @@
+/*
+ * Copyright (C) 2024 Markus Lavin (https://www.zzzconsulting.se/)
+ *
+ * All rights reserved.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+#include "bios.h"
+
+// Subset of HID mapping copied from
+// https://gist.github.com/MightyPork/6da26e382a7ad91b5496ee55fdc73db2
+// Thank you very much MightyPork!
+
+static const uint8_t hid2c64[] = {
+    0xff, // 0x00 // No key pressed
+    0xff, // 0x01 // Keyboard Error Roll Over
+    0xff, // 0x02 // Keyboard POST Fail
+    0xff, // 0x03 // Keyboard Error Undefined
+    0x12, // 0x04 // Keyboard a and A
+    0x34, // 0x05 // Keyboard b and B
+    0x24, // 0x06 // Keyboard c and C
+    0x22, // 0x07 // Keyboard d and D
+    0x16, // 0x08 // Keyboard e and E
+    0x25, // 0x09 // Keyboard f and F
+    0x32, // 0x0a // Keyboard g and G
+    0x35, // 0x0b // Keyboard h and H
+    0x41, // 0x0c // Keyboard i and I
+    0x42, // 0x0d // Keyboard j and J
+    0x45, // 0x0e // Keyboard k and K
+    0x52, // 0x0f // Keyboard l and L
+    0x44, // 0x10 // Keyboard m and M
+    0x47, // 0x11 // Keyboard n and N
+    0x46, // 0x12 // Keyboard o and O
+    0x51, // 0x13 // Keyboard p and P
+    0x76, // 0x14 // Keyboard q and Q
+    0x21, // 0x15 // Keyboard r and R
+    0x15, // 0x16 // Keyboard s and S
+    0x26, // 0x17 // Keyboard t and T
+    0x36, // 0x18 // Keyboard u and U
+    0x37, // 0x19 // Keyboard v and V
+    0x11, // 0x1a // Keyboard w and W
+    0x27, // 0x1b // Keyboard x and X
+    0x31, // 0x1c // Keyboard y and Y
+    0x14, // 0x1d // Keyboard z and Z
+
+    0x70, // 0x1e // Keyboard 1 and !
+    0x73, // 0x1f // Keyboard 2 and @
+    0x10, // 0x20 // Keyboard 3 and #
+    0x13, // 0x21 // Keyboard 4 and $
+    0x20, // 0x22 // Keyboard 5 and %
+    0x23, // 0x23 // Keyboard 6 and ^
+    0x30, // 0x24 // Keyboard 7 and &
+    0x33, // 0x25 // Keyboard 8 and *
+    0x40, // 0x26 // Keyboard 9 and (
+    0x43, // 0x27 // Keyboard 0 and )
+
+    0x01, // 0x28 // Keyboard Return (ENTER)
+    0x77, // 0x29 // Keyboard ESCAPE
+    0x00, // 0x2a // Keyboard DELETE (Backspace)
+    0x72, // 0x2b // Keyboard Tab
+    0x74, // 0x2c // Keyboard Spacebar
+    0x50, // 0x2d // Keyboard - and _
+    0x53, // 0x2e // Keyboard = and +
+    0x56, // 0x2f // Keyboard [ and {
+    0x61, // 0x30 // Keyboard ] and }
+    0x65, // 0x31 // Keyboard \ and |
+    0x65, // 0x32 // Keyboard Non-US # and ~
+    0x62, // 0x33 // Keyboard ; and :
+    0x55, // 0x34 // Keyboard ' and "
+    0x71, // 0x35 // Keyboard ` and ~
+    0x57, // 0x36 // Keyboard , and <
+    0x54, // 0x37 // Keyboard . and >
+    0x67, // 0x38 // Keyboard / and ?
+    0x77, // 0x39 // Keyboard Caps Lock
+
+    0x04, // 0x3a // Keyboard F1
+    0xff, // 0x3b // Keyboard F2
+    0x05, // 0x3c // Keyboard F3
+    0xff, // 0x3d // Keyboard F4
+    0x06, // 0x3e // Keyboard F5
+    0xff, // 0x3f // Keyboard F6
+    0x03, // 0x40 // Keyboard F7
+    0xff, // 0x41 // Keyboard F8
+    0xff, // 0x42 // Keyboard F9
+    0xff, // 0x43 // Keyboard F10
+    0xff, // 0x44 // Keyboard F11
+    0xff, // 0x45 // Keyboard F12
+
+    0xff, // 0x46 // Keyboard Print Screen
+    0xff, // 0x47 // Keyboard Scroll Lock
+    0xff, // 0x48 // Keyboard Pause
+    0x60, // 0x49 // Keyboard Insert
+    0x63, // 0x4a // Keyboard Home
+    0xff, // 0x4b // Keyboard Page Up
+    0x66, // 0x4c // Keyboard Delete Forward
+    0xff, // 0x4d // Keyboard End
+    0xff, // 0x4e // Keyboard Page Down
+    0x02, // 0x4f // Keyboard Right Arrow
+    0xff, // 0x50 // Keyboard Left Arrow
+    0x07, // 0x51 // Keyboard Down Arrow
+    0xff, // 0x52 // Keyboard Up Arrow
+};
+
+void keyboard_ext_handle() {
+  uint8_t hid_mod = *CONT3_KEY >> 8;
+  uint8_t hid_keys[6];
+  hid_keys[0] = *CONT3_JOY >> 24;
+  hid_keys[1] = *CONT3_JOY >> 16;
+  hid_keys[2] = *CONT3_JOY >> 8;
+  hid_keys[3] = *CONT3_JOY >> 0;
+  hid_keys[4] = *CONT3_TRIG >> 8;
+  hid_keys[5] = *CONT3_TRIG >> 0;
+  for (unsigned i = 0; i < 6; i++) {
+    if (hid_keys[i] < sizeof(hid2c64)) {
+      uint8_t ports = hid2c64[hid_keys[i]];
+      if (ports == 0xff)
+        continue;
+      c64_keyb_mask |= C64_KEYB_MASK_KEY(ports);
+    }
+  }
+
+  // https://wiki.osdev.org/USB_Human_Interface_Devices
+  if (hid_mod & (1 << 0)) {
+    // The Commodore key
+    c64_keyb_mask |= C64_KEYB_MASK_KEY(0x75);
+  }
+  if (hid_mod & (1 << 1)) {
+    // Left shift
+    c64_keyb_mask |= C64_KEYB_MASK_KEY(0x17);
+  }
+  if (hid_mod & (1 << 5)) {
+    // Right shift
+    c64_keyb_mask |= C64_KEYB_MASK_KEY(0x64);
+  }
+}

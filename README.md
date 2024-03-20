@@ -3,8 +3,9 @@
 This is a go at wrapping up my very much work in progress C64 emulator for the
 Analogue Pocket. The emulator core itself
 [MyC64](https://github.com/markus-zzz/myc64) was something that I started
-working on as a hobby project during summer of 2020. Sporadically over the years I have
-put some effort into it but overall **it is quite far from complete**.
+working on as a hobby project during summer of 2020. Sporadically over the
+years I have put some effort into it. Finally it is approaching some level of
+usefulness.
 
 ## Setup
 
@@ -40,119 +41,49 @@ Suggestions are [Supermon+64](https://github.com/jblang/supermon64) and the
 [High Voltage SID Collection (HVSC)](https://www.hvsc.c64.org/) converted to
 [PSID64 format](https://boswme.home.xs4all.nl/HVSC/HVSC80_PSID64_packed.7z).
 
-The following games seem to work somewhat okay but others might too (have not
-really tested that many).
+For games it is recommended to get hold of the *OneLoad64 collection* of 2100+
+titles (just google it). From what I can tell the majority of the collection's
+crunched `.prg` files load up properly. It is important to pick the crunched
+ones as the uncrunched will attempt to replace the entire RAM which is not
+supported while the system is running. Pocket appears to truncate directories
+containing more than 1500 files so indexing as below is suggested.
+
 ```
-$ md5sum *.prg
-e8b3602ed47f3fa0fa057446a073291d  Bubble Bobble (1987)(Firebird Software).prg
-ffc9147f4e436e75d6bc316555ac1fbf  Dan Dare 2 - Mekon's Revenge (1988)(Virgin Games)[cr Stack].prg
+$ p7zip -d OneLoad64-Games-Collection-v5.7z
+$ cd AlternativeFormats/PRGs/Crunched/
+$ for letter in {a..z}; do mkdir ${letter^}; mv ${letter}*.prg ${letter^}/; mv ${letter^}*.prg ${letter^}/; done
+$ for digit in {0..9}; do mkdir ${digit}; mv ${digit}*.prg ${digit}/; done
 ```
 
 ## Usage
 
-From **Core Settings->Load PRG Slot #0** one can select the `.prg` that is to
-be loaded into C64 memory when the **right-of-analogue** button is pressed.
+Pressing **left-of-analogue** brings up (toggles) the on-screen-display
+containing a virtual keyboard and a small menu system for settings.
 
-- **left-of-analogue** - Toggle virtual keyboard on/off
-- **right-of-analogue** - Load PRG slot #0 into C64 RAM
-- **left-trig** - Shift modifier for keyboard
+For the virtual keyboard the **face-x** button toggles sticky keys (useful for
+modifiers such as shift) and the **face-y** button clears any sticky key.
+Normal key press is accomplished with the **face-a** button.
+
+Pressing **trig-l1** and **trig-r1** navigates through the different menu tabs.
+
+Loading `.prg` files is accomplished by first selecting the file in the AP's
+**Core Settings->Load PRG Slot #0** file browser and after that injecting it
+from the **PRGS** menu tab.
+
+Controllers can be mapped to C64 joystick ports in the **MISC** menu tab and
+there you will also find a reset button for the emulator core.
 
 A physical keyboard is supported while docked. The keyboard is expected to show
 up on the third input (i.e. `cont3_joy`). For details on the key mapping see
 table `hid2c64` in source file `src/bios/main.c`.
 
-## Development
+## Known issues
 
-### Build instructions
+While being quite fun to play with the core it not entirely complete yet and
+what follows is a list of things I have yet to address
 
-Build the BIOS for the housekeeping CPU
-```
-$ cd src/bios/
-$ ./build-sw-clang.sh
-$ cd -
-```
-
-*run the Quartus flow*
-
-Do bit-reversal of the configuration bitstream
-```
-$ python3 utils/reverse-bits.py src/fpga/output_files/ap_core.rbf dist/Cores/markus-zzz.MyC64/bitstream.rbf_r
-```
-
-All non APF verilog is auto formatted with `verible-verilog-format`. Any C-code
-is formatted with `clang-format`.
-
-### Testing / verification
-
-The testing process during development has so far not been very systematic. As
-this is a hobby project I am aiming for what is the most fun, and that is
-unfortunately not to have an extensive test suite that would effectively smoke
-out any problem in a controlled environment, but instead to try and run real
-games and see where it breaks.
-
-The following test programs have been used during development to compare
-against VICE
-```
-$ md5sum *.prg
-e8b3602ed47f3fa0fa057446a073291d  Bubble Bobble (1987)(Firebird Software).prg
-4af2b50eb5ff1c5c42ed4d2ed514390b  Commando (1985)(Elite).prg
-0260b16e26a4b8f1a94917f098ffa673  Ghosts 'n Goblins (1986)(Elite)[b].prg
-3a64ddb63188960b67ee3bfe583ea2d6  supermon64.prg
-0c23bbdff747ee112196874cc910ca55  Top_Duck.prg
-```
-
-Clone the official git repository of the VICE C64 emulator
-
-```
-git clone https://github.com/VICE-Team/svn-mirror.git
-$ ./autogen.sh
-$ ./configure --without-libcurl --without-alsa --enable-gtk3ui --prefix=/home/markus/work/scratch/vice-install
-$ make install
-```
-
-Then make some adjustments to its source code to enable dumping for system RAM
-into an uncluttered format
-
-```
-diff --git a/vice/src/c64/c64memsnapshot.c b/vice/src/c64/c64memsnapshot.c
-index 99c282746b..0b778b008b 100644
---- a/vice/src/c64/c64memsnapshot.c
-+++ b/vice/src/c64/c64memsnapshot.c
-@@ -203,6 +203,11 @@ static const char snap_mem_module_name[] = "C64MEM";
-
- int c64_snapshot_write_module(snapshot_t *s, int save_roms)
- {
-+  {
-+     FILE *fp = fopen("ram.bin", "wb");
-+     fwrite(mem_ram, C64_RAM_SIZE, 1, fp);
-+     fclose(fp);
-+  }
-     snapshot_module_t *m;
-
-     /* Main memory module.  */
-diff --git a/vice/src/monitor/mon_memmap.c b/vice/src/monitor/mon_memmap.c
-index 5b95264f19..07b9ca0954 100644
---- a/vice/src/monitor/mon_memmap.c
-+++ b/vice/src/monitor/mon_memmap.c
-@@ -138,6 +138,8 @@ void monitor_cpuhistory_store(CLOCK cycle, unsigned int addr, unsigned int op,
-         return;
-     }
-
-+    //fprintf(stderr, "%04x\n", addr);
-+
-     ++cpuhistory_i;
-     if (cpuhistory_i == cpuhistory_lines) {
-         cpuhistory_i = 0;
-```
-
-At first startup make sure that the following settings are selected
-
-- **Settings->Host->Autostart** - set *Autostart mode* to *Inject into RAM*.
-- **Settings->Machine->RAM** - set all to zero to make sure that RAM is zero initialized after reset.
-
-Then simply run as e.g.
-
-```
-$ x64 supermon64.prg
-```
-
+- CIA implementation is lacking many features
+- VIC-II is lacking sprite collision
+- VIC-II sprite position seem to be offset by eight pixels wrt to background
+- VIC-II is lacking soft scrolling (at least in the horizontal direction)
+- SID is missing noise, ring modulation, hard sync and a few other things

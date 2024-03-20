@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Markus Lavin (https://www.zzzconsulting.se/)
+ * Copyright (C) 2024 Markus Lavin (https://www.zzzconsulting.se/)
  *
  * All rights reserved.
  *
