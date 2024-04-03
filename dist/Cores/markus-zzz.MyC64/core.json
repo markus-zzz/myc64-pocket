@@ -6,9 +6,9 @@
             "shortname": "MyC64",
             "description": "My experimental Commodore 64 emulator",
             "author": "markus-zzz",
-            "url": "https://github.com/markus-zzz/myc64",
-            "version": "0.0.1",
-            "date_release": "2024-01-13"
+            "url": "https://github.com/markus-zzz/myc64-pocket",
+            "version": "0.1.0",
+            "date_release": "2024-04-03"
         },
         "framework": {
             "target_product": "Analogue Pocket",

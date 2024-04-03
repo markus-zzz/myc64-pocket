@@ -1,4 +1,4 @@
-# Analogue Pocket - MyC64 - 0.0.0
+# Analogue Pocket - MyC64 - 0.1.0
 
 This is a go at wrapping up my very much work in progress C64 emulator for the
 Analogue Pocket. The emulator core itself
@@ -83,7 +83,6 @@ While being quite fun to play with the core it not entirely complete yet and
 what follows is a list of things I have yet to address
 
 - CIA implementation is lacking many features
-- VIC-II is lacking sprite collision
-- VIC-II sprite position seem to be offset by eight pixels wrt to background
-- VIC-II is lacking soft scrolling (at least in the horizontal direction)
+- VIC-II missing sprite to background collisions
+- VIC-II missing sprite to background priorities
 - SID is missing noise, ring modulation, hard sync and a few other things
