@@ -1,4 +1,4 @@
-# Analogue Pocket - MyC64 - 0.1.0
+# Analogue Pocket - MyC64
 
 This is a go at wrapping up my very much work in progress C64 emulator for the
 Analogue Pocket. The emulator core itself
@@ -9,12 +9,8 @@ usefulness.
 
 ## Setup
 
-Assuming that the Analogue Pocket's SD card is by some means mounted as `/media`
-
-```
-$ cp dist/platforms/c64.json /media/platforms/
-$ cp -r dist/Cores/markus-zzz.MyC64 /media/Cores/
-```
+Simply unzip the `MyC64-Pocket.zip` (from releases) in the root directory of
+the Analogue Pocket's SD card.
 
 ### System ROMs
 
