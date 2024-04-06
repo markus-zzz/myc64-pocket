@@ -14,6 +14,10 @@ pushd src/bios
 ./build-sw-clang.sh
 popd
 
+pushd src/fpga/core/myc64/rtl/myc64
+python3 myc64.py
+popd
+
 quartus_sh --flow compile ./src/fpga/ap_core.qpf
 
 cp -r ${DIST} ${STAGING}
