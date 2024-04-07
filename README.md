@@ -38,11 +38,12 @@ Suggestions are [Supermon+64](https://github.com/jblang/supermon64) and the
 [PSID64 format](https://boswme.home.xs4all.nl/HVSC/HVSC80_PSID64_packed.7z).
 
 For games it is recommended to get hold of the *OneLoad64 collection* of 2100+
-titles (just google it). From what I can tell the majority of the collection's
-crunched `.prg` files load up properly. It is important to pick the crunched
-ones as the uncrunched will attempt to replace the entire RAM which is not
-supported while the system is running. Pocket appears to truncate directories
-containing more than 1500 files so indexing as below is suggested.
+titles `OneLoad64-Games-Collection-v5.7z` (just google it). From what I can
+tell the majority of the collection's crunched `.prg` files (found in
+`AlternativeFormats/PRGs/Crunched/`) load up properly. It is important to pick
+the crunched ones as the uncrunched will attempt to replace the entire RAM
+which is not supported while the system is running. Pocket appears to truncate
+directories containing more than 1500 files so indexing as below is suggested.
 
 ```
 $ p7zip -d OneLoad64-Games-Collection-v5.7z
@@ -50,6 +51,12 @@ $ cd AlternativeFormats/PRGs/Crunched/
 $ for letter in {a..z}; do mkdir ${letter^}; mv ${letter}*.prg ${letter^}/; mv ${letter^}*.prg ${letter^}/; done
 $ for digit in {0..9}; do mkdir ${digit}; mv ${digit}*.prg ${digit}/; done
 ```
+
+Of course as the core is in development not every `.prg` will function
+correctly. So to avoid frustration and help new users out we have the following
+wiki page [Working
+PRGs](https://github.com/markus-zzz/myc64-pocket/wiki/Working-PRGs) that anyone
+(on github) can edit. Please feel free to update it with your findings!
 
 ## Usage
 
@@ -75,8 +82,8 @@ table `hid2c64` in source file `src/bios/main.c`.
 
 ## Known issues
 
-While being quite fun to play with the core it not entirely complete yet and
-what follows is a list of things I have yet to address
+While being quite fun to play with the core it not entirely complete and what
+follows is a list of things I have yet to address
 
 - CIA implementation is lacking many features
 - VIC-II missing sprite to background collisions
