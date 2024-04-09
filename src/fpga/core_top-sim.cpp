@@ -35,9 +35,9 @@
 #include <string.h>
 #include <vector>
 
-#include "core/myc64/roms/basic.h"
-#include "core/myc64/roms/characters.h"
-#include "core/myc64/roms/kernal.h"
+#include "basic.h"
+#include "characters.h"
+#include "kernal.h"
 
 static unsigned trace_begin_frame = 0;
 static std::string prg_path;

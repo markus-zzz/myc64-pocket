@@ -14,7 +14,7 @@ pushd src/bios
 ./build-sw-clang.sh
 popd
 
-pushd src/fpga/core/myc64/rtl/myc64
+pushd src/fpga/core/myc64-rtl
 python3 myc64.py
 popd
 

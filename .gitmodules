@@ -1,3 +1,6 @@
-[submodule "src/fpga/core/myc64"]
-	path = src/fpga/core/myc64
-	url = https://github.com/markus-zzz/myc64.git
+[submodule "src/fpga/core/myc64-rtl/T65"]
+	path = src/fpga/core/myc64-rtl/T65
+	url = https://github.com/mist-devel/T65.git
+[submodule "src/fpga/core/myc64-rtl/cpu-tv65"]
+	path = src/fpga/core/myc64-rtl/cpu-tv65
+	url = https://github.com/opengateware-modules/cpu-tv65.git
