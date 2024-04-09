@@ -73,6 +73,15 @@ class VicII(Elaboratable):
     sprite_shift = Array([Signal(24) for _ in range(8)])
     sprite_shift_2msb = Array([Signal(2) for _ in range(8)])
     sprite_shift_toggle = Array([Signal(1) for _ in range(8)])
+    sprite_out_color = Array([Signal(4) for _ in range(8)])
+    sprite_out_valid = Signal(8)
+
+    sprite_final_out_color = Signal(4)
+    sprite_final_out_priority = Signal()
+    sprite_final_out_valid = Signal()
+
+    graph_color = Signal(4)
+    graph_color_is_fg = Signal()
 
     # X and Y counters with wrap logic.
     with m.If(self.clk_8mhz_en):
@@ -142,6 +151,7 @@ class VicII(Elaboratable):
     r_d015 = rf.addRegRW(addr=0xd015, width=8)
     r_d016 = rf.addRegRW(addr=0xd016, width=8)
     r_d01a = rf.addRegRW(addr=0xd01a, width=4)
+    r_d01b = rf.addRegRW(addr=0xd01b, width=8)
     r_d01c = rf.addRegRW(addr=0xd01c, width=8)
     sprites_color = Array([rf.addRegRW(addr=addr, width=4) for addr in range(0xd027, 0xd02f, 1)])
 
@@ -167,14 +177,29 @@ class VicII(Elaboratable):
               writeSignal=None)
     with m.If(~self.o_steal_bus & self.clk_1mhz_ph2_en & self.i_reg_cs & r_d01e_readStrobe):
       m.d.sync += sprite2sprite_col.eq(0)
-    sprite_active_for_pixel = Signal(8)
-    col_mask = sprite_active_for_pixel
     for idx in range(8):
-      with m.If(col_mask[idx] & (col_mask & ~(C(1, 8) << idx)).any()):
+      with m.If(sprite_out_valid[idx] & (sprite_out_valid & ~(C(1, 8) << idx)).any()):
         m.d.sync += sprite2sprite_col[idx].eq(1)
 
     with m.If(sprite2sprite_col.any()):
       m.d.sync += irq[2].eq(1)
+
+    # Sprite to graphics collisions
+    sprite2graph_col = Signal(8)
+    r_d01f_readStrobe = Signal()
+    rf.addReg(addr=0xd01f,
+              readStrobe=r_d01f_readStrobe, # XXX: Fix regs.py to include self.i_reg_cs
+              readSignal=sprite2graph_col,
+              writeStrobe=None,
+              writeSignal=None)
+    with m.If(~self.o_steal_bus & self.clk_1mhz_ph2_en & self.i_reg_cs & r_d01f_readStrobe):
+      m.d.sync += sprite2graph_col.eq(0)
+    for idx in range(8):
+      with m.If(sprite_out_valid[idx] & graph_color_is_fg):
+        m.d.sync += sprite2graph_col[idx].eq(1)
+
+    with m.If(sprite2graph_col.any()):
+      m.d.sync += irq[1].eq(1)
 
     # Raster IRQ
     with m.If(self.clk_8mhz_en):
@@ -211,85 +236,99 @@ class VicII(Elaboratable):
     with m.If(~pixshift_toggle):
       m.d.sync += pixshift_2msb.eq(pixshift[6:8])
 
-    color = Signal(4)
-    m.d.comb += [color.eq(r_d020)]  # Border color.
-    with m.If(mode_screen_on & display_window_x & display_window_y):
-      # XXX: This is as temporary hack for testing and not how the priorities
-      # are supposed to work.
-      m.d.comb += color.eq(0)
-      # Do sprite to sprite collision detection
-      m.d.comb += sprite_active_for_pixel.eq(0)
-      for idx in range(8):
-        sprite_bit = sprite_shift[idx][23]
-        sprite_bits = Mux(sprite_shift_toggle[idx], sprite_shift_2msb[idx], sprite_shift[idx][22:24])
-        m.d.comb += sprite_active_for_pixel[idx].eq(sprite_shift_on[idx] & Mux(r_d01c[idx], sprite_bits != C(0b00, 2), sprite_bit != C(0b0, 1)))
-
-      with m.If(False):
-        pass
-      for idx in range(8):
-        sprite_bit = sprite_shift[idx][23]
-        sprite_bits = Mux(sprite_shift_toggle[idx], sprite_shift_2msb[idx], sprite_shift[idx][22:24])
-        with m.Elif(sprite_shift_on[idx] & Mux(r_d01c[idx], sprite_bits != C(0b00, 2), sprite_bit != C(0b0, 1))):
-          with m.If(r_d01c[idx]):
-            with m.Switch(sprite_bits):
-              with m.Case(0b00):
-                pass
-              with m.Case(0b01):
-                m.d.comb += [color.eq(r_d025)]
-              with m.Case(0b10):
-                m.d.comb += [color.eq(sprites_color[idx])]
-              with m.Case(0b11):
-                m.d.comb += [color.eq(r_d026)]
-          with m.Else():
-            m.d.comb += [color.eq(sprites_color[idx])]
-
-      with m.Elif(~mode_ecm & ~mode_bmm & ~mode_mcm): # Standard text mode (ECM/BMM/MCM=0/0/0)
-        m.d.comb += [color.eq(Mux(pixshift[7], fgcolor[8:12], r_d021))]
-
-      with m.Elif(~mode_ecm & ~mode_bmm & mode_mcm): # Multicolor text mode (ECM/BMM/MCM=0/0/1)
-        with m.If(fgcolor[11]):
-          with m.Switch(Mux(pixshift_toggle, pixshift_2msb, pixshift[6:8])):
+    # Generate the eight sprites
+    for idx in range(8):
+      m.d.comb += sprite_out_valid[idx].eq(0)
+      with m.If(sprite_shift_on[idx]):
+        with m.If(r_d01c[idx]): # Multicolor
+          sprite_bits = Mux(sprite_shift_toggle[idx], sprite_shift_2msb[idx], sprite_shift[idx][22:24])
+          with m.Switch(sprite_bits):
             with m.Case(0b00):
-              m.d.comb += color.eq(r_d021)
+              pass
             with m.Case(0b01):
-              m.d.comb += color.eq(r_d022)
+              m.d.comb += [sprite_out_valid[idx].eq(1), sprite_out_color[idx].eq(r_d025)]
             with m.Case(0b10):
-              m.d.comb += color.eq(r_d023)
+              m.d.comb += [sprite_out_valid[idx].eq(1), sprite_out_color[idx].eq(sprites_color[idx])]
             with m.Case(0b11):
-              m.d.comb += color.eq(fgcolor[8:11])
+              m.d.comb += [sprite_out_valid[idx].eq(1), sprite_out_color[idx].eq(r_d026)]
         with m.Else():
-          m.d.comb += [color.eq(Mux(pixshift[7], fgcolor[8:12], r_d021))]
+          sprite_bit = sprite_shift[idx][23]
+          with m.If(sprite_bit):
+            m.d.comb += [sprite_out_valid[idx].eq(1), sprite_out_color[idx].eq(sprites_color[idx])]
 
-      with m.Elif(~mode_ecm & mode_bmm & ~mode_mcm): # Standard bitmap mode (ECM/BMM/MCM=0/1/0)
-        m.d.comb += [color.eq(Mux(pixshift[7], fgcolor[4:8], fgcolor[0:4]))]
+    # Sprite priority 0-7
+    m.d.comb += sprite_final_out_valid.eq(0)
+    with m.If(False):
+      pass
+    for idx in range(8):
+      with m.Elif(sprite_out_valid[idx]):
+        m.d.comb += [sprite_final_out_color.eq(sprite_out_color[idx]),
+                     sprite_final_out_priority.eq(r_d01b[idx]),
+                     sprite_final_out_valid.eq(1)]
 
-      with m.Elif(~mode_ecm & mode_bmm & mode_mcm): # Multicolor bitmap mode (ECM/BMM/MCM=0/1/1)
+    # Text / graphics
+    m.d.comb += graph_color_is_fg.eq(0)
+    with m.If(~mode_ecm & ~mode_bmm & ~mode_mcm): # Standard text mode (ECM/BMM/MCM=0/0/0)
+      with m.If(pixshift[7]):
+        m.d.comb += [graph_color.eq(fgcolor[8:12]), graph_color_is_fg.eq(1)]
+      with m.Else():
+        m.d.comb += graph_color.eq(r_d021)
+
+    with m.Elif(~mode_ecm & ~mode_bmm & mode_mcm): # Multicolor text mode (ECM/BMM/MCM=0/0/1)
+      with m.If(fgcolor[11]):
         with m.Switch(Mux(pixshift_toggle, pixshift_2msb, pixshift[6:8])):
           with m.Case(0b00):
-            m.d.comb += color.eq(r_d021)
+            m.d.comb += graph_color.eq(r_d021)
           with m.Case(0b01):
-            m.d.comb += color.eq(fgcolor[4:8])
+            m.d.comb += graph_color.eq(r_d022)
           with m.Case(0b10):
-            m.d.comb += color.eq(fgcolor[0:4])
+            m.d.comb += [graph_color.eq(r_d023), graph_color_is_fg.eq(1)]
           with m.Case(0b11):
-            m.d.comb += color.eq(fgcolor[8:12])
-
-      with m.Elif(mode_ecm & ~mode_bmm & ~mode_mcm): # ECM text mode (ECM/BMM/MCM=1/0/0)
+            m.d.comb += [graph_color.eq(fgcolor[8:11]), graph_color_is_fg.eq(1)]
+      with m.Else():
         with m.If(pixshift[7]):
-          m.d.comb += color.eq(fgcolor[8:12])
+          m.d.comb += [graph_color.eq(fgcolor[8:12]), graph_color_is_fg.eq(1)]
         with m.Else():
-          with m.Switch(fgcolor[6:8]):
-            with m.Case(0b00):
-              m.d.comb += color.eq(r_d021)
-            with m.Case(0b01):
-              m.d.comb += color.eq(r_d022)
-            with m.Case(0b10):
-              m.d.comb += color.eq(r_d023)
-            with m.Case(0b11):
-              m.d.comb += color.eq(r_d024)
+          m.d.comb += graph_color.eq(r_d021)
+
+    with m.Elif(~mode_ecm & mode_bmm & ~mode_mcm): # Standard bitmap mode (ECM/BMM/MCM=0/1/0)
+      with m.If(pixshift[7]):
+        m.d.comb += [graph_color.eq(fgcolor[4:8]), graph_color_is_fg.eq(1)]
+      with m.Else():
+        m.d.comb += graph_color.eq(fgcolor[0:4])
+
+    with m.Elif(~mode_ecm & mode_bmm & mode_mcm): # Multicolor bitmap mode (ECM/BMM/MCM=0/1/1)
+      with m.Switch(Mux(pixshift_toggle, pixshift_2msb, pixshift[6:8])):
+        with m.Case(0b00):
+          m.d.comb += graph_color.eq(r_d021)
+        with m.Case(0b01):
+          m.d.comb += graph_color.eq(fgcolor[4:8])
+        with m.Case(0b10):
+          m.d.comb += [graph_color.eq(fgcolor[0:4]), graph_color_is_fg.eq(1)]
+        with m.Case(0b11):
+          m.d.comb += [graph_color.eq(fgcolor[8:12]), graph_color_is_fg.eq(1)]
+
+    with m.Elif(mode_ecm & ~mode_bmm & ~mode_mcm): # ECM text mode (ECM/BMM/MCM=1/0/0)
+      with m.If(pixshift[7]):
+        m.d.comb += graph_color.eq(fgcolor[8:12])
+      with m.Else():
+        with m.Switch(fgcolor[6:8]):
+          with m.Case(0b00):
+            m.d.comb += graph_color.eq(r_d021)
+          with m.Case(0b01):
+            m.d.comb += graph_color.eq(r_d022)
+          with m.Case(0b10):
+            m.d.comb += graph_color.eq(r_d023)
+          with m.Case(0b11):
+            m.d.comb += graph_color.eq(r_d024)
 
 
-    m.d.comb += [self.o_color.eq(color)]
+    m.d.comb += [self.o_color.eq(r_d020)]  # Border color.
+    with m.If(mode_screen_on & display_window_x & display_window_y):
+      m.d.comb += self.o_color.eq(graph_color)
+      with m.If(sprite_final_out_valid):
+        with m.If(~sprite_final_out_priority | ~graph_color_is_fg):
+          m.d.comb += self.o_color.eq(sprite_final_out_color)
 
     vic_owns_ph1 = Signal()
 
