@@ -39,6 +39,8 @@
 #include "characters.h"
 #include "kernal.h"
 
+#include "c1541.h"
+
 static unsigned trace_begin_frame = 0;
 static std::string prg_path;
 static bool dump_video = false;
@@ -378,6 +380,7 @@ int main(int argc, char *argv[]) {
   dataslots[200] = std::make_pair(basic_bin, basic_bin_len);
   dataslots[201] = std::make_pair(characters_bin, characters_bin_len);
   dataslots[202] = std::make_pair(kernal_bin, kernal_bin_len);
+  dataslots[203] = std::make_pair(c1541_bin, c1541_bin_len);
 
   std::vector<uint8_t> prg_slot;
   if (!prg_path.empty()) {

@@ -522,6 +522,24 @@ module core_top (
       .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
   );
 
+  wire [15:0] c1541_bus_addr;
+  wire [7:0] c1541_ram_rdata;
+  wire [7:0] c1541_ram_wdata;
+  wire [7:0] c1541_rom_data;
+  wire c1541_ram_we;
+
+  my1541_top u_my1541 (
+      .rst(~c64_ctrl[0]),
+      .clk(video_rgb_clock),
+      .o_addr(c1541_bus_addr),
+      .i_ram_data(c1541_ram_rdata),
+      .o_ram_data(c1541_ram_wdata),
+      .o_ram_we(c1541_ram_we),
+      .i_rom_data(c1541_rom_data),
+      .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
+  );
+
   wire [15:0] c64_bus_addr;
   wire [7:0] c64_ram_rdata;
   wire [7:0] c64_ram_wdata;
@@ -547,7 +565,9 @@ module core_top (
   end
 
 
-
+  //
+  // Memories for MyC64
+  //
   spram #(
       .aw(16),
       .dw(8)
@@ -607,6 +627,37 @@ module core_top (
       .we  (ext_rom_kernal_we)
   );
 
+  //
+  // Memories for My1541
+  //
+  spram #(
+      .aw(11),
+      .dw(8)
+  ) u_c1541_ram (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(c1541_bus_addr),
+      .do  (c1541_ram_rdata),
+      .di  (c1541_ram_wdata),
+      .we  (c1541_ram_we)
+  );
+
+  spram #(
+      .aw(14),
+      .dw(8)
+  ) u_c1541_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_1541_we ? ext_addr : c1541_bus_addr),
+      .do  (c1541_rom_data),
+      .di  (ext_data),
+      .we  (ext_rom_1541_we)
+  );
+
   wire cpu_mem_valid;
   wire cpu_mem_instr;
   reg cpu_mem_ready;
@@ -628,11 +679,13 @@ module core_top (
   wire ext_rom_basic_we;
   wire ext_rom_char_we;
   wire ext_rom_kernal_we;
+  wire ext_rom_1541_we;
 
   assign ext_ram_we = (cpu_mem_addr[31:16] == 16'h5000) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_basic_we = (cpu_mem_addr[31:16] == 16'h5001) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_char_we = (cpu_mem_addr[31:16] == 16'h5002) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_kernal_we = (cpu_mem_addr[31:16] == 16'h5003) && cpu_mem_valid && (cpu_mem_wstrb != 0);
+  assign ext_rom_1541_we = (cpu_mem_addr[31:16] == 16'h5004) && cpu_mem_valid && (cpu_mem_wstrb != 0);
 
   always @* begin
     case (cpu_mem_wstrb)

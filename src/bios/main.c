@@ -99,12 +99,15 @@ int main(void) {
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
 
-  // Load BASIC ROM
+  // Load C64 BASIC ROM
   load_rom(200, (volatile uint8_t *)0x50010000, 8192);
-  // Load CHAR ROM
+  // Load C64 CHAR ROM
   load_rom(201, (volatile uint8_t *)0x50020000, 4096);
-  // Load KERNAL ROM
+  // Load C64 KERNAL ROM
   load_rom(202, (volatile uint8_t *)0x50030000, 8192);
+
+  // Load 1541 ROM
+  load_rom(203, (volatile uint8_t *)0x50040000, 16384);
 
   *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 2); // Joystick1 = cont2
   *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 1); // Joystick2 = cont1
