@@ -79,13 +79,3 @@ there you will also find a reset button for the emulator core.
 A physical keyboard is supported while docked. The keyboard is expected to show
 up on the third input (i.e. `cont3_joy`). For details on the key mapping see
 table `hid2c64` in source file `src/bios/main.c`.
-
-## Known issues
-
-While being quite fun to play with the core it not entirely complete and what
-follows is a list of things I have yet to address
-
-- CIA implementation is lacking many features
-- VIC-II missing sprite to background collisions
-- VIC-II missing sprite to background priorities
-- SID is missing noise, ring modulation, hard sync and a few other things
