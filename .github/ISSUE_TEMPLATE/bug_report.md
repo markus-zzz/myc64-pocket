@@ -10,6 +10,9 @@ assignees: markus-zzz
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+**Affected release label**
+E.g. bug present in `v0.1.1` but not `v.0.1.0`
+
 **To Reproduce**
 Steps to reproduce the behavior.
 What `.prg` file was used, what source it came from and preferably its `md5sum`.
