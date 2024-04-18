@@ -155,9 +155,11 @@ class VicII(Elaboratable):
     r_d01c = rf.addRegRW(addr=0xd01c, width=8)
     sprites_color = Array([rf.addRegRW(addr=addr, width=4) for addr in range(0xd027, 0xd02f, 1)])
 
-    mode_ecm = r_d011[6] # Extended Color Mode
-    mode_bmm = r_d011[5] # Bit Map Mode
-    mode_mcm = r_d016[4] # Multi Color Mode
+    mode_ecm = Signal() # Extended Color Mode
+    mode_bmm = Signal() # Bit Map Mode
+    mode_mcm = Signal() # Multi Color Mode
+
+    m.d.comb += [mode_ecm.eq(r_d011[6]), mode_bmm.eq(r_d011[5]), mode_mcm.eq(r_d016[4])]
 
     mode_screen_on = r_d011[4] # Screen on, normal content
     mode_40_columns = r_d016[3] # 40 coulmns mode
