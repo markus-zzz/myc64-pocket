@@ -20,7 +20,7 @@
 
 #include "bios.h"
 
-static int sel_row;
+static volatile int sel_row;
 
 void misc_init() { sel_row = 0; }
 
@@ -55,19 +55,23 @@ void misc_handle() {
 }
 
 void misc_draw() {
+  IRQ_DISABLE();
+  int sel_row_tmp = sel_row;
+  IRQ_ENABLE();
+
   const char *inputs[] = {"N/C  ", "CONT1", "CONT2"};
   int offset;
   int x = 2, y = 12;
-  osd_put_str(x, y, "RESET", sel_row == 0);
+  osd_put_str(x, y, "RESET", sel_row_tmp == 0);
   y += 10;
   osd_put_str(x, y, "INPUTS", 0);
   x += 8;
   y += 10;
   uint32_t tmp = bits_get(*C64_CTRL, 1, 2);
   offset = osd_put_str(x, y, "JOYSTICK1: ", 0);
-  osd_put_str(offset, y, inputs[tmp], sel_row == 1);
+  osd_put_str(offset, y, inputs[tmp], sel_row_tmp == 1);
   y += 10;
   tmp = bits_get(*C64_CTRL, 3, 2);
   offset = osd_put_str(x, y, "JOYSTICK2: ", 0);
-  osd_put_str(offset, y, inputs[tmp], sel_row == 2);
+  osd_put_str(offset, y, inputs[tmp], sel_row_tmp == 2);
 }

@@ -775,6 +775,7 @@ module core_top (
 
   picorv32 #(
       .COMPRESSED_ISA(1),
+      .ENABLE_IRQ(1),
       .ENABLE_MUL(1),
       .ENABLE_DIV(1)
   ) u_cpu (

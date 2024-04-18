@@ -22,6 +22,8 @@
 
 #define N_OSD_TABS sizeof(osd_tabs) / sizeof(osd_tabs[0])
 
+#define TIMER_TIMEOUT 80000
+
 void keyboard_virt_init();
 void keyboard_virt_handle();
 void keyboard_virt_draw();
@@ -52,6 +54,9 @@ uint32_t cont1_key_p = 0;
 uint32_t cont1_key = 0;
 
 uint64_t c64_keyb_mask = 0;
+
+static volatile int osd_idx;
+static volatile int osd_on;
 
 void load_rom(uint16_t slot_id, volatile uint8_t *dst, uint32_t slot_length) {
   volatile uint8_t *p = (volatile uint8_t *)0x70000000;
@@ -107,57 +112,75 @@ int main(void) {
   cont1_key_p = 0;
   cont1_key = 0;
 
-  int osd_idx = 0;
-  int osd_on = 0;
+  osd_idx = 0;
+  osd_on = 0;
 
   osd_clear();
+  int osd_idx_prev = osd_idx;
+
+  timer_start(TIMER_TIMEOUT);
+  IRQ_ENABLE();
 
   while (1) {
-    // Prologue
-    cont1_key = *CONT1_KEY;
-    c64_keyb_mask = 0;
-
-    if (KEYB_POSEDGE(face_select)) {
-      osd_on = !osd_on;
-      *OSD_CTRL = osd_on;
-    }
-
+    int osd_idx_tmp = osd_idx;
     if (osd_on) {
-      if (KEYB_POSEDGE(trig_l1)) {
-        osd_idx--;
-        osd_idx = MAX(osd_idx, 0);
+      if (osd_idx_prev != osd_idx_tmp) {
         osd_clear();
-      } else if (KEYB_POSEDGE(trig_r1)) {
-        osd_idx++;
-        osd_idx = MIN(osd_idx, N_OSD_TABS - 1);
-        osd_clear();
+        osd_idx_prev = osd_idx_tmp;
       }
-
       // Draw tab bar
       int offset = 0;
       for (int i = 0; i < N_OSD_TABS; i++) {
-        offset = osd_put_str(offset, 1, osd_tabs[i].name, i == osd_idx);
+        offset = osd_put_str(offset, 1, osd_tabs[i].name, i == osd_idx_tmp);
         offset += 8;
       }
       // Handle active tab
-      const struct osd_tab *tab = &osd_tabs[osd_idx];
-      if (tab->handle)
-        tab->handle();
+      const struct osd_tab *tab = &osd_tabs[osd_idx_tmp];
       if (tab->draw)
         tab->draw();
     }
-
-    // Always handle external keyboard
-    if (1) { // (*CONT3_KEY >> 28) == 0x4) { // Docked keyboard
-      keyboard_ext_handle();
-    }
-
-    // Epilogue
-    *KEYB_MASK_0 = c64_keyb_mask;
-    *KEYB_MASK_1 = c64_keyb_mask >> 32;
-
-    cont1_key_p = cont1_key;
   }
 
   return 0;
+}
+
+uint32_t *irq(uint32_t *regs, uint32_t irqs) {
+  timer_start(TIMER_TIMEOUT);
+
+  // Prologue
+  cont1_key = *CONT1_KEY;
+  c64_keyb_mask = 0;
+
+  if (KEYB_POSEDGE(face_select)) {
+    osd_on = !osd_on;
+    *OSD_CTRL = osd_on;
+  }
+
+  if (osd_on) {
+    if (KEYB_POSEDGE(trig_l1)) {
+      osd_idx--;
+      osd_idx = MAX(osd_idx, 0);
+    } else if (KEYB_POSEDGE(trig_r1)) {
+      osd_idx++;
+      osd_idx = MIN(osd_idx, N_OSD_TABS - 1);
+    }
+
+    // Handle active tab
+    const struct osd_tab *tab = &osd_tabs[osd_idx];
+    if (tab->handle)
+      tab->handle();
+  }
+
+  // Always handle external keyboard
+  if (1) { // (*CONT3_KEY >> 28) == 0x4) { // Docked keyboard
+    keyboard_ext_handle();
+  }
+
+  // Epilogue
+  *KEYB_MASK_0 = c64_keyb_mask;
+  *KEYB_MASK_1 = c64_keyb_mask >> 32;
+
+  cont1_key_p = cont1_key;
+
+  return regs;
 }

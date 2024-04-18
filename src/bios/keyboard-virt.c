@@ -25,9 +25,9 @@ struct entry {
   uint8_t ports;
 };
 
-static int sel_row;
-static int sel_col;
-static uint64_t sticky_keys;
+static volatile int sel_row;
+static volatile int sel_col;
+static volatile uint64_t sticky_keys;
 
 const struct entry row_0[] = {
     {"F1", 0x04},   {"\x1f", 0x71}, {"1", 0x70}, {"2", 0x73}, {"3", 0x10},
@@ -102,6 +102,12 @@ void keyboard_virt_handle() {
 }
 
 void keyboard_virt_draw(void) {
+  IRQ_DISABLE();
+  int sel_row_tmp = sel_row;
+  int sel_col_tmp = sel_col;
+  uint64_t sticky_keys_tmp = sticky_keys;
+  IRQ_ENABLE();
+
   // Draw keyboard to OSD buffer
   for (int i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
     const struct entry *row = rows[i];
@@ -110,8 +116,8 @@ void keyboard_virt_draw(void) {
       const struct entry *e = &row[j];
       const char *str = e->str;
       for (int k = 0; str[k] != '\0'; k++) {
-        int invert = (sel_row == i && sel_col == j) ||
-                     (sticky_keys & C64_KEYB_MASK_KEY(e->ports));
+        int invert = (sel_row_tmp == i && sel_col_tmp == j) ||
+                     (sticky_keys_tmp & C64_KEYB_MASK_KEY(e->ports));
         osd_put_char(offset, 10 + 2 + i * 10, str[k], invert);
         offset += 8;
       }

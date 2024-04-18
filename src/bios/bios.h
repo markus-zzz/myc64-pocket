@@ -86,6 +86,9 @@
 
 #define C64_KEYB_MASK_KEY(x) (1ULL << ((((x) >> 4) & 0xf) * 8 + ((x)&0xf)))
 
+#define IRQ_ENABLE() irq_mask(0)
+#define IRQ_DISABLE() irq_mask(-1)
+
 extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 
@@ -96,6 +99,9 @@ void osd_put_char(int x, int y, char c, int invert);
 unsigned osd_put_str(int x, int y, const char *str, int invert);
 unsigned osd_put_hex8(int x, int y, uint8_t val, int invert);
 unsigned osd_put_hex16(int x, int y, uint16_t val, int invert);
+
+void irq_mask(uint32_t mask);
+void timer_start(uint32_t timeout);
 
 static inline uint32_t bits_get(uint32_t in, uint32_t pos, uint32_t width) {
   uint32_t mask = (1 << width) - 1;
