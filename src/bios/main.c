@@ -23,6 +23,7 @@
 #define N_OSD_TABS sizeof(osd_tabs) / sizeof(osd_tabs[0])
 
 #define TIMER_TIMEOUT 80000
+volatile uint32_t timer_ticks;
 
 void keyboard_virt_init();
 void keyboard_virt_handle();
@@ -144,12 +145,30 @@ int main(void) {
   return 0;
 }
 
+static uint32_t navigation_keys_prev;
+static uint32_t navigation_timeout;
+
 uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   timer_start(TIMER_TIMEOUT);
+  timer_ticks++;
 
   // Prologue
   cont1_key = *CONT1_KEY;
   c64_keyb_mask = 0;
+
+  // Handle auto-repeat for navigation keys
+  const uint32_t navigation_mask = 0x30f;
+  uint32_t navigation_keys = cont1_key & navigation_mask;
+  if (navigation_keys) {
+    if (navigation_keys_prev != navigation_keys) {
+      navigation_timeout = timer_ticks + 66; // initial delay
+    } else if (navigation_timeout == timer_ticks) {
+      // Fake a pos-edge
+      cont1_key_p &= ~navigation_keys;
+      navigation_timeout = timer_ticks + 10; // repeat delay
+    }
+  }
+  navigation_keys_prev = navigation_keys;
 
   if (KEYB_POSEDGE(face_select)) {
     osd_on = !osd_on;
