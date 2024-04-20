@@ -24,34 +24,30 @@
 #define OSD_DIM_X 256
 #define OSD_DIM_Y 64
 
-static void set_pixel(unsigned x, unsigned y) {
-  if (x >= OSD_DIM_X || y >= OSD_DIM_Y)
-    return;
-  volatile unsigned char *p = (volatile unsigned char *)0x10000000;
-  unsigned idx = y * OSD_DIM_X / 8 + x / 8;
-  unsigned bit = 7 - x % 8;
-  p[idx] |= 1 << bit;
-}
-
-static void clr_pixel(unsigned x, unsigned y) {
-  if (x >= OSD_DIM_X || y >= OSD_DIM_Y)
-    return;
-  volatile unsigned char *p = (volatile unsigned char *)0x10000000;
-  unsigned idx = y * OSD_DIM_X / 8 + x / 8;
-  unsigned bit = 7 - x % 8;
-  p[idx] &= ~(1 << bit);
-}
-
-static void draw_char_bitmap(int x, int y, const unsigned char *p,
+static void draw_char_bitmap(int x, int y, const unsigned char *bp,
                              int selected) {
+  if (x + 8 >= OSD_DIM_X || y + 8 >= OSD_DIM_Y)
+    return;
+  // XXX: It would be more optimal to work at 32 bits at a time but then we
+  // need to make the OSD pixshift register in RTL 32 bits as well. Otherwise
+  // things get too weird!
+  volatile uint8_t *osd_fb = (volatile uint8_t *)0x10000000;
+  unsigned idx = y * OSD_DIM_X / 8 + x / 8;
+  unsigned bit = x % 8;
   for (int i = 0; i < 8; i++) {
-    char q = p[i];
-    for (int j = 0; j < 8; j++) {
-      if (((q >> (7 - j)) & 1) != selected)
-        set_pixel(x + j, y + i);
-      else
-        clr_pixel(x + j, y + i);
+    uint8_t bitmap = bp[i];
+    if (selected)
+      bitmap = ~bitmap;
+    uint8_t tmp = osd_fb[idx];
+    tmp = (tmp & ~(0xff >> bit)) | (bitmap >> bit);
+    osd_fb[idx] = tmp;
+    if (bit > 0) {
+      uint8_t tmp = osd_fb[idx + 1];
+      unsigned bit2 = 8 - bit;
+      tmp = (tmp & ~(0xff << bit2)) | (bitmap << bit2);
+      osd_fb[idx + 1] = tmp;
     }
+    idx += OSD_DIM_X / 8;
   }
 }
 
@@ -96,8 +92,8 @@ unsigned osd_put_hex16(int x, int y, uint16_t val, int invert) {
 }
 
 void osd_clear() {
-  volatile unsigned char *p = (volatile unsigned char *)0x10000000;
-  for (int i = 0; i < OSD_DIM_X * OSD_DIM_Y / 8; i++) {
-    p[i] = 0;
+  volatile uint32_t *osd_fb = (volatile uint32_t *)0x10000000;
+  for (int i = 0; i < OSD_DIM_X * OSD_DIM_Y / 32; i++) {
+    osd_fb[i] = 0;
   }
 }

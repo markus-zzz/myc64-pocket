@@ -96,10 +96,12 @@ static void load_prg(uint16_t slot_id) {
 
 static int scroll_offset;
 static int scroll_dir;
+static uint32_t ticks_next_update;
 
 void prgs_init() {
   scroll_offset = 0;
   scroll_dir = 1;
+  ticks_next_update = 0;
 }
 
 void prgs_handle() {
@@ -135,17 +137,20 @@ void prgs_draw() {
       osd_put_char(offset, 30, idx < len ? q[idx] : ' ', 1);
       offset += 8;
     }
-    if (scroll_dir > 0) {
-      if (scroll_offset + disp_len < len) {
-        scroll_offset++;
-      } else {
-        scroll_dir = -1;
-      }
-    } else if (scroll_dir < 0) {
-      if (scroll_offset > 0) {
-        scroll_offset--;
-      } else {
-        scroll_dir = 1;
+    if (timer_ticks >= ticks_next_update) {
+      ticks_next_update = timer_ticks + 10;
+      if (scroll_dir > 0) {
+        if (scroll_offset + disp_len < len) {
+          scroll_offset++;
+        } else {
+          scroll_dir = -1;
+        }
+      } else if (scroll_dir < 0) {
+        if (scroll_offset > 0) {
+          scroll_offset--;
+        } else {
+          scroll_dir = 1;
+        }
       }
     }
   }

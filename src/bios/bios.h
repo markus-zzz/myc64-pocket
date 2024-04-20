@@ -89,6 +89,8 @@
 #define IRQ_ENABLE() irq_mask(0)
 #define IRQ_DISABLE() irq_mask(-1)
 
+extern volatile uint32_t timer_ticks;
+
 extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 
