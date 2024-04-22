@@ -47,10 +47,17 @@ class MyC64(Elaboratable):
     self.o_clk_1mhz_ph1_en = Signal()
     self.o_clk_1mhz_ph2_en = Signal()
 
+    self.o_iec_atn_out = Signal()
+    self.i_iec_data_in = Signal()
+    self.o_iec_data_out = Signal()
+    self.i_iec_clock_in = Signal()
+    self.o_iec_clock_out = Signal()
+
     self.ports = [
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
-        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en
+        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
+        self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
     ]
 
   def elaborate(self, platform):

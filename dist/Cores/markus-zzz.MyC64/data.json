@@ -12,6 +12,15 @@
         "extensions": ["prg"]
     },
     {
+        "name": "G64 Slot #0",
+        "id": "110",
+        "required": false,
+        "deferload": true,
+        "parameters": 9,
+        "filename": "",
+        "extensions": ["g64"]
+    },
+    {
         "name": "Basic ROM",
         "id": "200",
         "required": true,

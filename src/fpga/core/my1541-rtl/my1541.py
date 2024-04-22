@@ -41,9 +41,16 @@ class My1541(Elaboratable):
     self.i_clk_1mhz_ph1_en = Signal()
     self.i_clk_1mhz_ph2_en = Signal()
 
+    self.i_iec_atn_in = Signal()
+    self.i_iec_data_in = Signal()
+    self.o_iec_data_out = Signal()
+    self.i_iec_clock_in = Signal()
+    self.o_iec_clock_out = Signal()
+
     self.ports = [
         self.o_addr, self.i_rom_data, self.i_ram_data, self.o_ram_data, self.o_ram_we, self.o_track_addr,
-        self.i_track_data, self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en
+        self.i_track_data, self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en, self.i_iec_atn_in, self.i_iec_data_in,
+        self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
     ]
 
   def elaborate(self, platform):
@@ -112,6 +119,46 @@ class My1541(Elaboratable):
         self.o_ram_data.eq(cpu_do),
         self.o_ram_we.eq(cpu_we & ram_cs)
     ]
+
+    #
+    # Handle track memory
+    #
+    track_bit_cntr = Signal(range(8192 * 8))
+    track_bit_cntr_p = Signal(3)
+    track_byte_shift = Signal(8)
+
+    m.d.comb += self.o_track_addr.eq(track_bit_cntr[5:])
+    with m.If(self.i_clk_1mhz_ph2_en):
+      m.d.sync += [track_bit_cntr.eq(track_bit_cntr + 1), track_bit_cntr_p.eq(track_bit_cntr)]
+      with m.If(track_bit_cntr_p == 0):
+        m.d.sync += track_byte_shift.eq(self.i_track_data.word_select(track_bit_cntr[3:5], 8))
+      with m.Else():
+        m.d.sync += track_byte_shift.eq(Cat(C(0b0, 1), track_byte_shift[0:7]))
+
+    #
+    # Sample incomming bits
+    #
+    block_sync = Signal()
+    byte_sync = Signal()
+    byte = Signal(8)
+
+    read_bits = Signal(10)
+    bit_cntr = Signal(3)
+
+    m.d.comb += byte_sync.eq(bit_cntr == 0b111)
+    m.d.comb += [byte.eq(read_bits[0:8]), block_sync.eq(read_bits.all())]
+    with m.If(self.i_clk_1mhz_ph2_en):
+      m.d.sync += [bit_cntr.eq(bit_cntr + 1), read_bits.eq(Cat(track_byte_shift[7], read_bits[0:9]))]
+      with m.If(block_sync):
+        m.d.sync += bit_cntr.eq(0)
+
+
+    head_step_dir = Signal(2)
+    motor_ctrl = Signal()
+    led_ctrl = Signal()
+    write_protect = Signal()
+    data_density = Signal(2)
+
 
     return m
 

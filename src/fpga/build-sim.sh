@@ -1,6 +1,19 @@
 #!/bin/bash
 
 set -e
+
+pushd ../bios
+./build-sw-clang.sh
+popd
+
+pushd core/myc64-rtl
+python3 myc64.py
+popd
+
+pushd core/my1541-rtl
+python3 my1541.py
+popd
+
 OBJ_DIR=obj_dir
 rm -rf $OBJ_DIR
 

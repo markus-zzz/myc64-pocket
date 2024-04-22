@@ -33,6 +33,10 @@ void prgs_init();
 void prgs_handle();
 void prgs_draw();
 
+void g64_init();
+void g64_handle();
+void g64_draw();
+
 void misc_init();
 void misc_handle();
 void misc_draw();
@@ -48,6 +52,7 @@ static const struct osd_tab {
 } osd_tabs[] = {
     {"KEYBOARD", keyboard_virt_init, keyboard_virt_handle, keyboard_virt_draw},
     {"PRGS", prgs_init, prgs_handle, prgs_draw},
+    {"G64", g64_init, g64_handle, g64_draw},
     {"MISC", misc_init, misc_handle, misc_draw},
 };
 

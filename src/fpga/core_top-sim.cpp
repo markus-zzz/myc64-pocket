@@ -43,6 +43,7 @@
 
 static unsigned trace_begin_frame = 0;
 static std::string prg_path;
+static std::string g64_path;
 static bool dump_video = false;
 static bool dump_ram = false;
 static unsigned exit_frame = 0;
@@ -369,6 +370,8 @@ int main(int argc, char *argv[]) {
       ->needs("--trace");
   app.add_option("--prg", prg_path, ".prg file to put in slot")
       ->check(CLI::ExistingFile);
+  app.add_option("--g64", g64_path, ".g64 file to put in slot")
+      ->check(CLI::ExistingFile);
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables
@@ -382,6 +385,7 @@ int main(int argc, char *argv[]) {
   dataslots[202] = std::make_pair(kernal_bin, kernal_bin_len);
   dataslots[203] = std::make_pair(c1541_bin, c1541_bin_len);
 
+  // Load .prg into slot
   std::vector<uint8_t> prg_slot;
   if (!prg_path.empty()) {
     std::ifstream instream(prg_path, std::ios::in | std::ios::binary);
@@ -389,6 +393,16 @@ int main(int argc, char *argv[]) {
                               std::istreambuf_iterator<char>());
     prg_slot = std::move(data);
     dataslots[100] = std::make_pair(prg_slot.data(), prg_slot.size());
+  }
+
+  // Load .g64 into slot
+  std::vector<uint8_t> g64_slot;
+  if (!g64_path.empty()) {
+    std::ifstream instream(g64_path, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
+                              std::istreambuf_iterator<char>());
+    g64_slot = std::move(data);
+    dataslots[110] = std::make_pair(g64_slot.data(), g64_slot.size());
   }
 
   VICIIFrameDumper myVICIIFrameDumper;

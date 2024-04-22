@@ -528,6 +528,9 @@ module core_top (
   wire [7:0] c1541_rom_data;
   wire c1541_ram_we;
 
+  wire [10:0] c1541_track_mem_addr;
+  wire [31:0] c1541_track_mem_data;
+
   my1541_top u_my1541 (
       .rst(~c64_ctrl[0]),
       .clk(video_rgb_clock),
@@ -536,6 +539,8 @@ module core_top (
       .o_ram_data(c1541_ram_wdata),
       .o_ram_we(c1541_ram_we),
       .i_rom_data(c1541_rom_data),
+      .o_track_addr(c1541_track_mem_addr),
+      .i_track_data(c1541_track_mem_data),
       .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
       .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
   );
@@ -933,6 +938,26 @@ module core_top (
       .b_addr(cpu_mem_addr[31:2]),
       .b_din (32'h0),
       .b_dout(dataslot_table_rd_data_cpu)
+  );
+
+  // 8KB of DP track memory for 1541. Fed by bridge, read by 1541
+  bram_block_dp #(
+      .DATA(32),
+      .ADDR(11)
+  ) u_bridge_1541_track_ram (
+      .a_clk(clk_74a),
+      .a_wr(bridge_wr && bridge_addr[31:28] == 4'h9),
+      .a_addr(bridge_addr[31:2]),
+      .a_din({
+        bridge_wr_data[7:0], bridge_wr_data[15:8], bridge_wr_data[23:16], bridge_wr_data[31:24]
+      }),
+      .a_dout(  /* NC */),
+
+      .b_clk (clk),
+      .b_wr  (1'b0),
+      .b_addr(c1541_track_mem_addr),
+      .b_din (32'h0),
+      .b_dout(c1541_track_mem_data)
   );
 
 endmodule
