@@ -500,6 +500,19 @@ module core_top (
     endcase
   end
 
+  // IEC
+  wire iec_atn;
+  wire iec_data;
+  wire iec_clock;
+  wire iec_c64_data_out;
+  wire iec_c64_clock_out;
+  wire iec_1541_data_out;
+  wire iec_1541_clock_out;
+
+  // Any device can pull clock or data low
+  assign iec_data = iec_c64_data_out & iec_1541_data_out;
+  assign iec_clock = iec_c64_clock_out & iec_1541_clock_out;
+
   myc64_top u_myc64 (
       .rst(~c64_ctrl[0]),
       .clk(video_rgb_clock),
@@ -519,7 +532,12 @@ module core_top (
       .o_ram_main_data(c64_ram_wdata),
       .o_ram_main_we(c64_ram_we),
       .o_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
-      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
+      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
+      .o_iec_atn_out(iec_atn),
+      .i_iec_data_in(iec_data),
+      .o_iec_data_out(iec_c64_data_out),
+      .i_iec_clock_in(iec_clock),
+      .o_iec_clock_out(iec_c64_clock_out)
   );
 
   wire [15:0] c1541_bus_addr;
@@ -542,7 +560,12 @@ module core_top (
       .o_track_addr(c1541_track_mem_addr),
       .i_track_data(c1541_track_mem_data),
       .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
-      .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
+      .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
+      .i_iec_atn_in(iec_atn),
+      .i_iec_data_in(iec_data),
+      .o_iec_data_out(iec_1541_data_out),
+      .i_iec_clock_in(iec_clock),
+      .o_iec_clock_out(iec_1541_clock_out)
   );
 
   wire [15:0] c64_bus_addr;

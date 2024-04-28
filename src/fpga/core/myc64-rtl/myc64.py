@@ -223,11 +223,18 @@ class MyC64(Elaboratable):
         u_cia2.i_addr.eq(bus_addr),
         u_cia2.i_we.eq(bus_we),
         u_cia2.i_data.eq(bus_do),
-        u_cia2.i_pa.eq(C(0xff, 8)),
+        u_cia2.i_pa.eq(0xff),
+        u_cia2.i_pa[6].eq(self.i_iec_clock_in),
+        u_cia2.i_pa[7].eq(self.i_iec_data_in),
+
         # Bus matrix
         bus_addr.eq(Mux(vic_cycle | u_vic.o_steal_bus, Cat(u_vic.o_addr, ~u_cia2.o_pa[0:2]), cpu_addr)),
         bus_we.eq(cpu_we & ~vic_cycle & ~u_vic.o_steal_bus),
-        bus_do.eq(cpu_do)
+        bus_do.eq(cpu_do),
+        # IEC
+        self.o_iec_atn_out.eq(~u_cia2.o_pa[3]),
+        self.o_iec_clock_out.eq(~u_cia2.o_pa[4]),
+        self.o_iec_data_out.eq(~u_cia2.o_pa[5]),
     ]
 
     with m.If((bus_addr[12:16] == 0b0001) | (bus_addr[12:16] == 0b1001)):

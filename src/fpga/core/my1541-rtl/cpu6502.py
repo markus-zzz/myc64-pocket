@@ -32,12 +32,7 @@ class Cpu6502(Elaboratable):
     self.o_we = Signal()  # write enable
     self.i_irq = Signal()  # interrupt request
     self.i_nmi = Signal()  # non-maskable interrupt request
-    self.i_so_n = Signal()
-
-    self.ports = [
-        self.clk_1mhz_ph1_en, self.clk_1mhz_ph2_en, self.o_addr, self.i_data, self.o_data, self.o_we, self.i_irq,
-        self.i_nmi, self.i_so_n
-    ]
+    self.i_so = Signal()
 
   def elaborate(self, platform):
     m = Module()
@@ -64,7 +59,7 @@ class Cpu6502(Elaboratable):
                                    i_Abort_n=C(0b1, 1),
                                    i_IRQ_n=~self.i_irq,
                                    i_NMI_n=~self.i_nmi,
-                                   i_SO_n=~self.i_so_n,
+                                   i_SO_n=C(1,1), #self.i_so,
                                    o_R_W_n=we_n,
                                    o_A=addr,
                                    i_DI=data_ir,

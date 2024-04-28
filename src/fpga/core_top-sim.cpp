@@ -227,6 +227,48 @@ struct VICIIFrameDumper {
           }
         }
 
+        if (!g64_path.empty()) {
+          dut->cont3_key = 0;
+          dut->cont3_joy = 0;
+          switch (m_FrameIdx) {
+          default:
+            break;
+          case 150:
+            dut->cont3_joy = 0x0f; // L
+            break;
+          case 151:
+            dut->cont3_joy = 0x12; // O
+            break;
+          case 152:
+            dut->cont3_joy = 0x04; // A
+            break;
+          case 153:
+            dut->cont3_joy = 0x07; // D
+            break;
+          case 154:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x1f; // "
+            break;
+          case 155:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x21; // $
+            break;
+          case 156:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x1f; // "
+            break;
+          case 157:
+            dut->cont3_joy = 0x36; // ,
+            break;
+          case 158:
+            dut->cont3_joy = 0x25; // 8
+            break;
+          case 159:
+            dut->cont3_joy = 0x28; // <RETURN>
+            break;
+          }
+        }
+
         CM.flushTrace();
         if (exit_frame != 0 && exit_frame == m_FrameIdx) {
           exit(0);

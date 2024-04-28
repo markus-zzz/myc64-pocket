@@ -94,8 +94,9 @@ class My1541(Elaboratable):
     #
 
     m.d.comb += [
+        # CPU
         u_cpu.i_data.eq(cpu_di),
-        u_cpu.i_irq.eq(0b0),
+        u_cpu.i_irq.eq(u_via1.o_irq | u_via2.o_irq),
         cpu_addr.eq(u_cpu.o_addr),
         cpu_we.eq(u_cpu.o_we),
         cpu_do.eq(u_cpu.o_data),
@@ -113,11 +114,10 @@ class My1541(Elaboratable):
         u_via2.i_addr.eq(cpu_addr),
         u_via2.i_we.eq(cpu_we),
         u_via2.i_data.eq(cpu_do),
-        u_via2.i_pa.eq(C(0xff, 8)),
         #
         self.o_addr.eq(cpu_addr),
         self.o_ram_data.eq(cpu_do),
-        self.o_ram_we.eq(cpu_we & ram_cs)
+        self.o_ram_we.eq(cpu_we & ram_cs),
     ]
 
     #
@@ -152,13 +152,35 @@ class My1541(Elaboratable):
       with m.If(block_sync):
         m.d.sync += bit_cntr.eq(0)
 
-
+    # XXX:TODO: Wire these signals to VIA2
     head_step_dir = Signal(2)
     motor_ctrl = Signal()
     led_ctrl = Signal()
     write_protect = Signal()
     data_density = Signal(2)
 
+    atna = Signal()
+
+    m.d.comb += [
+        # VIA-1
+        u_via1.i_pb[0].eq(~self.i_iec_data_in),
+        self.o_iec_data_out.eq(~u_via1.o_pb[1] & ~(atna ^ ~self.i_iec_atn_in)),
+        u_via1.i_pb[2].eq(~self.i_iec_clock_in),
+        self.o_iec_clock_out.eq(~u_via1.o_pb[3]),
+        atna.eq(u_via1.i_pb[4]),
+        u_via1.i_pb[7].eq(~self.i_iec_atn_in),
+        u_via1.i_ca1.eq(~self.i_iec_atn_in),
+        # VIA-2
+        u_via2.i_pa.eq(byte),
+        u_via2.i_ca1.eq(~byte_sync),
+        u_cpu.i_so.eq(byte_sync),
+        head_step_dir.eq(u_via2.o_pb[0:2]),
+        motor_ctrl.eq(u_via2.o_pb[2]),
+        led_ctrl.eq(u_via2.o_pb[3]),
+        u_via2.i_pb[4].eq(write_protect),
+        data_density.eq(u_via2.o_pb[5:7]),
+        u_via2.i_pb[7].eq(~block_sync),
+    ]
 
     return m
 
