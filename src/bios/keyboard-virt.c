@@ -25,8 +25,8 @@ struct entry {
   uint8_t ports;
 };
 
-static volatile int sel_row;
-static volatile int sel_col;
+static volatile uint8_t sel_row;
+static volatile uint8_t sel_col;
 static volatile uint64_t sticky_keys;
 
 const struct entry row_0[] = {
@@ -53,6 +53,10 @@ const struct entry row_4[] = {{"SPACE", 0x74}, {NULL}};
 
 const struct entry *const rows[] = {row_0, row_1, row_2, row_3, row_4};
 
+#define N_ROWS (sizeof(rows) / sizeof(rows[0]))
+
+uint8_t prev_cols[N_ROWS];
+
 unsigned row_length(unsigned row_idx) {
   const struct entry *p = rows[row_idx];
   unsigned len = 0;
@@ -66,25 +70,42 @@ unsigned row_length(unsigned row_idx) {
 void keyboard_virt_init() {
   sel_row = 0;
   sel_col = 0;
+  prev_cols[0] = 0;
+  prev_cols[N_ROWS - 1] = 0;
   sticky_keys = 0;
 }
 
 void keyboard_virt_handle() {
   if (KEYB_POSEDGE(dpad_up)) {
-    if (sel_row > 0)
+    if (sel_row > 0) {
+      if (sel_row == N_ROWS - 1)
+        sel_col = prev_cols[N_ROWS - 2];
       sel_row--;
+    } else {
+      sel_row = N_ROWS - 1;
+    }
     sel_col = MIN(sel_col, row_length(sel_row) - 1);
   } else if (KEYB_POSEDGE(dpad_down)) {
-    if (sel_row < sizeof(rows) / sizeof(rows[0]) - 1)
+    if (sel_row < N_ROWS - 1) {
       sel_row++;
+    } else {
+      sel_row = 0;
+      sel_col = prev_cols[sel_row];
+    }
     sel_col = MIN(sel_col, row_length(sel_row) - 1);
   } else if (KEYB_POSEDGE(dpad_left)) {
     if (sel_col > 0)
       sel_col--;
+    else
+      sel_col = row_length(sel_row) - 1;
   } else if (KEYB_POSEDGE(dpad_right)) {
-    sel_col++;
-    sel_col = MIN(sel_col, row_length(sel_row) - 1);
+    if (sel_col < row_length(sel_row) - 1)
+      sel_col++;
+    else
+      sel_col = 0;
   }
+
+  prev_cols[sel_row] = sel_col;
 
   const struct entry *row = rows[sel_row];
   const struct entry *e = &row[sel_col];
@@ -109,7 +130,7 @@ void keyboard_virt_draw(void) {
   IRQ_ENABLE();
 
   // Draw keyboard to OSD buffer
-  for (int i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+  for (int i = 0; i < N_ROWS; i++) {
     const struct entry *row = rows[i];
     int offset = 0;
     for (int j = 0; row[j].str != NULL; j++) {
