@@ -26,10 +26,13 @@
 static uint32_t track_offsets[G64_NUM_TRACKS];
 static uint16_t track_sizes[G64_NUM_TRACKS];
 
+static uint8_t track_no_prev;
+
 static void load_track(uint8_t track_id) {
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
-  // XXX: Write to track size register before we fire off the refill
+  // Write to track size register before we fire off the refill
+  *C1541_TRACK_LEN = track_sizes[track_id];
 
   *TARGET_20 = 110;                     // slot-id
   *TARGET_24 = track_offsets[track_id]; // slot-offset
@@ -68,8 +71,16 @@ void g64_init() {
     track_sizes[i] = *p16;
   }
 
-  // XXX: For testing load a track
-  load_track(2);
+  track_no_prev = 0xff;
+}
+
+void g64_irq() {
+  uint32_t status = *C1541_STATUS;
+  uint8_t track_no = status & 0x7f;
+  if (track_no != track_no_prev) {
+    load_track(track_no);
+    track_no_prev = track_no;
+  }
 }
 
 void g64_handle() {}

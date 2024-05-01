@@ -37,6 +37,8 @@ class My1541(Elaboratable):
 
     self.o_track_addr = Signal(11)
     self.i_track_data = Signal(32)
+    self.o_track_no = Signal(7)
+    self.i_track_len = Signal(13)
 
     self.i_clk_1mhz_ph1_en = Signal()
     self.i_clk_1mhz_ph2_en = Signal()
@@ -49,15 +51,15 @@ class My1541(Elaboratable):
 
     self.ports = [
         self.o_addr, self.i_rom_data, self.i_ram_data, self.o_ram_data, self.o_ram_we, self.o_track_addr,
-        self.i_track_data, self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en, self.i_iec_atn_in, self.i_iec_data_in,
-        self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
+        self.i_track_data, self.o_track_no, self.i_track_len, self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en,
+        self.i_iec_atn_in, self.i_iec_data_in, self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
     ]
 
   def elaborate(self, platform):
     m = Module()
 
     # 6502 CPU.
-    m.submodules.u_cpu = u_cpu = Cpu6502()
+    m.submodules.u_cpu_ = u_cpu_ = Cpu6502()
 
     # VIA-1.
     m.submodules.u_via1 = u_via1 = VIA()
@@ -95,13 +97,13 @@ class My1541(Elaboratable):
 
     m.d.comb += [
         # CPU
-        u_cpu.i_data.eq(cpu_di),
-        u_cpu.i_irq.eq(u_via1.o_irq | u_via2.o_irq),
-        cpu_addr.eq(u_cpu.o_addr),
-        cpu_we.eq(u_cpu.o_we),
-        cpu_do.eq(u_cpu.o_data),
-        u_cpu.clk_1mhz_ph1_en.eq(self.i_clk_1mhz_ph1_en),
-        u_cpu.clk_1mhz_ph2_en.eq(self.i_clk_1mhz_ph2_en),
+        u_cpu_.i_data.eq(cpu_di),
+        u_cpu_.i_irq.eq(u_via1.o_irq | u_via2.o_irq),
+        cpu_addr.eq(u_cpu_.o_addr),
+        cpu_we.eq(u_cpu_.o_we),
+        cpu_do.eq(u_cpu_.o_data),
+        u_cpu_.clk_1mhz_ph1_en.eq(self.i_clk_1mhz_ph1_en),
+        u_cpu_.clk_1mhz_ph2_en.eq(self.i_clk_1mhz_ph2_en),
         # VIA-1
         u_via1.clk_1mhz_ph_en.eq(self.i_clk_1mhz_ph2_en),
         u_via1.i_cs.eq(via1_cs),
@@ -120,6 +122,12 @@ class My1541(Elaboratable):
         self.o_ram_we.eq(cpu_we & ram_cs),
     ]
 
+
+    decoder_enable = Signal()
+    decoder_enable_cntr = Signal(2)
+    m.d.comb += decoder_enable.eq(self.i_clk_1mhz_ph2_en & (decoder_enable_cntr == 0))
+    with m.If(self.i_clk_1mhz_ph2_en):
+      m.d.sync += decoder_enable_cntr.eq(decoder_enable_cntr + 1)
     #
     # Handle track memory
     #
@@ -128,8 +136,12 @@ class My1541(Elaboratable):
     track_byte_shift = Signal(8)
 
     m.d.comb += self.o_track_addr.eq(track_bit_cntr[5:])
-    with m.If(self.i_clk_1mhz_ph2_en):
+    with m.If(decoder_enable):
       m.d.sync += [track_bit_cntr.eq(track_bit_cntr + 1), track_bit_cntr_p.eq(track_bit_cntr)]
+
+      with m.If(track_bit_cntr[3:] == self.i_track_len):
+        m.d.sync += track_bit_cntr.eq(0)
+
       with m.If(track_bit_cntr_p == 0):
         m.d.sync += track_byte_shift.eq(self.i_track_data.word_select(track_bit_cntr[3:5], 8))
       with m.Else():
@@ -145,15 +157,16 @@ class My1541(Elaboratable):
     read_bits = Signal(10)
     bit_cntr = Signal(3)
 
-    m.d.comb += byte_sync.eq(bit_cntr == 0b111)
+    m.d.comb += byte_sync.eq(decoder_enable & (bit_cntr == 0b111))
     m.d.comb += [byte.eq(read_bits[0:8]), block_sync.eq(read_bits.all())]
-    with m.If(self.i_clk_1mhz_ph2_en):
+    with m.If(decoder_enable):
       m.d.sync += [bit_cntr.eq(bit_cntr + 1), read_bits.eq(Cat(track_byte_shift[7], read_bits[0:9]))]
       with m.If(block_sync):
         m.d.sync += bit_cntr.eq(0)
 
     # XXX:TODO: Wire these signals to VIA2
     head_step_dir = Signal(2)
+    head_step_dir_p = Signal(2)
     motor_ctrl = Signal()
     led_ctrl = Signal()
     write_protect = Signal()
@@ -167,13 +180,13 @@ class My1541(Elaboratable):
         self.o_iec_data_out.eq(~u_via1.o_pb[1] & ~(atna ^ ~self.i_iec_atn_in)),
         u_via1.i_pb[2].eq(~self.i_iec_clock_in),
         self.o_iec_clock_out.eq(~u_via1.o_pb[3]),
-        atna.eq(u_via1.i_pb[4]),
+        atna.eq(u_via1.o_pb[4]),
         u_via1.i_pb[7].eq(~self.i_iec_atn_in),
         u_via1.i_ca1.eq(~self.i_iec_atn_in),
         # VIA-2
         u_via2.i_pa.eq(byte),
         u_via2.i_ca1.eq(~byte_sync),
-        u_cpu.i_so.eq(byte_sync),
+        u_cpu_.i_so.eq(byte_sync),
         head_step_dir.eq(u_via2.o_pb[0:2]),
         motor_ctrl.eq(u_via2.o_pb[2]),
         led_ctrl.eq(u_via2.o_pb[3]),
@@ -181,6 +194,17 @@ class My1541(Elaboratable):
         data_density.eq(u_via2.o_pb[5:7]),
         u_via2.i_pb[7].eq(~block_sync),
     ]
+
+    #
+    # Seek track
+    #
+    track_no = Signal(7, reset=34) # Reset to track 18
+    m.d.comb += self.o_track_no.eq(track_no)
+    m.d.sync += head_step_dir_p.eq(head_step_dir)
+    with m.If((track_no < 84) & (head_step_dir == (head_step_dir_p + 1)[0:2])):
+      m.d.sync += track_no.eq(track_no + 1)
+    with m.Elif((track_no > 0) & (head_step_dir == (head_step_dir_p - 1)[0:2])):
+      m.d.sync += track_no.eq(track_no - 1)
 
     return m
 

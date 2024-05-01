@@ -19,6 +19,11 @@ module core_top (
     input wire clk_74b,  // mainclk1
 `ifdef __VERILATOR__
     input wire reset_n,
+    output wire debug_iec_atn,
+    output wire debug_iec_data,
+    output wire debug_iec_clock,
+    output wire debug_1mhz_ph1_en,
+    output wire debug_1mhz_ph2_en,
 `endif
 
     ///////////////////////////////////////////////////
@@ -513,6 +518,14 @@ module core_top (
   assign iec_data = iec_c64_data_out & iec_1541_data_out;
   assign iec_clock = iec_c64_clock_out & iec_1541_clock_out;
 
+`ifdef __VERILATOR__
+    assign debug_iec_atn = iec_atn;
+    assign debug_iec_data = iec_data;
+    assign debug_iec_clock = iec_clock;
+    assign debug_1mhz_ph1_en = c64_clk_1mhz_ph1_en;
+    assign debug_1mhz_ph2_en = c64_clk_1mhz_ph2_en;
+`endif
+
   myc64_top u_myc64 (
       .rst(~c64_ctrl[0]),
       .clk(video_rgb_clock),
@@ -548,6 +561,7 @@ module core_top (
 
   wire [10:0] c1541_track_mem_addr;
   wire [31:0] c1541_track_mem_data;
+  wire [6:0] c1541_track_no;
 
   my1541_top u_my1541 (
       .rst(~c64_ctrl[0]),
@@ -559,6 +573,8 @@ module core_top (
       .i_rom_data(c1541_rom_data),
       .o_track_addr(c1541_track_mem_addr),
       .i_track_data(c1541_track_mem_data),
+      .o_track_no(c1541_track_no),
+      .i_track_len(c1541_track_len),
       .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
       .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
       .i_iec_atn_in(iec_atn),
@@ -767,6 +783,7 @@ module core_top (
       32'h2000_0028: cpu_mem_rdata = cont3_trig_s;
       32'h2000_002c: cpu_mem_rdata = cont4_trig_s;
       32'h3000_000c: cpu_mem_rdata = c64_ctrl;
+      32'h3000_0100: cpu_mem_rdata = c1541_track_no;
       32'h4xxx_xxxx: cpu_mem_rdata = bridge_rdata;
       32'h7xxx_xxxx: cpu_mem_rdata = bridge_dpram_rdata;
       32'h9xxx_xxxx: cpu_mem_rdata = dataslot_table_rd_data_cpu;
@@ -782,10 +799,15 @@ module core_top (
   end
 
   reg [4:0] c64_ctrl;
+  reg [12:0] c1541_track_len;
   always @(posedge clk) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
       c64_ctrl <= cpu_mem_wdata[4:0];
+    else if (cpu_mem_addr == 32'h30000104 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111) begin
+      c1541_track_len <= cpu_mem_wdata[12:0];
+      $display("track_len: %d, track_no: %d", c1541_track_len, c1541_track_no);
+    end
   end
 
   reg [63:0] keyboard_mask;

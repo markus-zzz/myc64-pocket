@@ -46,6 +46,9 @@
 #define KEYB_MASK_1 ((volatile uint32_t *)0x30000008)
 #define C64_CTRL ((volatile uint32_t *)0x3000000c)
 
+#define C1541_STATUS ((volatile uint32_t *)0x30000100)
+#define C1541_TRACK_LEN ((volatile uint32_t *)0x30000104)
+
 #define TARGET_0 ((volatile uint32_t *)0x40000000)
 #define TARGET_4 ((volatile uint32_t *)0x40000004)
 #define TARGET_8 ((volatile uint32_t *)0x40000008)

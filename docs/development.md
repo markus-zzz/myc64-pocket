@@ -92,3 +92,10 @@ Then simply run as e.g.
 ```
 $ x64 supermon64.prg
 ```
+
+## 1541
+
+```
+$ { echo 'atn,clk,dat'; cat iec.csv; } | sigrok-cli -I csv:header=yes:samplerate=1mhz -i - -o iec.sr
+$ pulseview iec.sr
+```

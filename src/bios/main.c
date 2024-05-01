@@ -36,6 +36,7 @@ void prgs_draw();
 void g64_init();
 void g64_handle();
 void g64_draw();
+void g64_irq();
 
 void misc_init();
 void misc_handle();
@@ -159,6 +160,8 @@ static uint32_t navigation_timeout;
 uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   timer_start(TIMER_TIMEOUT);
   timer_ticks++;
+
+  g64_irq();
 
   // Prologue
   cont1_key = *CONT1_KEY;

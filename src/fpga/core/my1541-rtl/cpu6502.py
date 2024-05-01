@@ -59,7 +59,7 @@ class Cpu6502(Elaboratable):
                                    i_Abort_n=C(0b1, 1),
                                    i_IRQ_n=~self.i_irq,
                                    i_NMI_n=~self.i_nmi,
-                                   i_SO_n=C(1,1), #self.i_so,
+                                   i_SO_n=~self.i_so,
                                    o_R_W_n=we_n,
                                    o_A=addr,
                                    i_DI=data_ir,

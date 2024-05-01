@@ -267,6 +267,7 @@ struct VICIIFrameDumper {
             dut->cont3_joy = 0x28; // <RETURN>
             break;
           }
+
         }
 
         CM.flushTrace();
@@ -275,6 +276,11 @@ struct VICIIFrameDumper {
         }
         m_FrameIdx++;
       }
+
+      if (m_FrameIdx > 150 && dut->debug_1mhz_ph1_en) {
+        fprintf(stderr, "%d,%d,%d\n", dut->debug_iec_atn, dut->debug_iec_clock, dut->debug_iec_data);
+      }
+
     }
   }
 

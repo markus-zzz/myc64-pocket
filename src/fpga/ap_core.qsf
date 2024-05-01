@@ -745,6 +745,7 @@ set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65_ALU.vhd
 set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65.vhd
 set_global_assignment -name VERILOG_FILE core/myc64-rtl/sid.v
 set_global_assignment -name VERILOG_FILE core/myc64-rtl/myc64.v
+set_global_assignment -name VERILOG_FILE core/my1541-rtl/my1541.v
 set_global_assignment -name VERILOG_FILE core/sprom.v
 set_global_assignment -name VERILOG_FILE core/spram.v
 set_global_assignment -name VERILOG_FILE core/picorv32.v
@@ -755,5 +756,6 @@ set_global_assignment -name SDC_FILE core/core_constraints.sdc
 set_global_assignment -name SIGNALTAP_FILE core/stp1.stp
 set_global_assignment -name QIP_FILE core/mf_pllbase.qip
 set_global_assignment -name SIP_FILE core/mf_pllbase.sip
+
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 set_global_assignment -name SLD_FILE db/stp1_auto_stripped.stp
