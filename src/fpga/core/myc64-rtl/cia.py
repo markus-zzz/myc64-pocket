@@ -203,6 +203,19 @@ class Cia(Elaboratable):
       with m.If(timer_a_reload):
         m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, reg_ta_hi))
 
+    # Timer B
+    timer_b_zero = Signal()
+    timer_b_reload = Signal()
+    m.d.comb += [timer_b_zero.eq(timer_b_cntr == 0), timer_b_reload.eq(timer_b_force_load | (crb_start & ~crb_runmode & timer_b_zero))]
+    with m.If(self.clk_1mhz_ph_en):
+      with m.If(crb_start):
+        with m.If(timer_b_zero):
+          m.d.sync += icr_status_tb.eq(1) # XXX: Should be moved down to have highest priority (priority over bus read at least)
+          with m.If(crb_runmode): # ONE-SHOT
+            m.d.sync += crb_start.eq(0)
+        m.d.sync += timer_b_cntr.eq(timer_b_cntr - 1)
+      with m.If(timer_b_reload):
+        m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, reg_tb_hi))
 
     m.d.comb += [self.o_pa.eq(reg_pra), self.o_pb.eq(reg_prb)]
 
