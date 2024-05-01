@@ -266,8 +266,22 @@ struct VICIIFrameDumper {
           case 159:
             dut->cont3_joy = 0x28; // <RETURN>
             break;
+          case 350:
+            dut->cont3_joy = 0x0f; // L
+            break;
+          case 351:
+            dut->cont3_joy = 0x0c; // I
+            break;
+          case 352:
+            dut->cont3_joy = 0x16; // S
+            break;
+          case 353:
+            dut->cont3_joy = 0x17; // T
+            break;
+          case 354:
+            dut->cont3_joy = 0x28; // <RETURN>
+            break;
           }
-
         }
 
         CM.flushTrace();

@@ -198,7 +198,7 @@ class My1541(Elaboratable):
     #
     # Seek track
     #
-    track_no = Signal(7, reset=34) # Reset to track 18
+    track_no = Signal(7)
     m.d.comb += self.o_track_no.eq(track_no)
     m.d.sync += head_step_dir_p.eq(head_step_dir)
     with m.If((track_no < 84) & (head_step_dir == (head_step_dir_p + 1)[0:2])):
