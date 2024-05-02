@@ -112,8 +112,9 @@ int main(void) {
   // Load C64 KERNAL ROM
   load_rom(202, (volatile uint8_t *)0x50030000, 8192);
 
-  // Load 1541 ROM
-  load_rom(203, (volatile uint8_t *)0x50040000, 16384);
+  // Load 1540/1541 ROMs
+  load_rom(203, (volatile uint8_t *)0x50040000, 8192);
+  load_rom(204, (volatile uint8_t *)(0x50040000 + 8192), 8192);
 
   *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 2); // Joystick1 = cont2
   *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 1); // Joystick2 = cont1

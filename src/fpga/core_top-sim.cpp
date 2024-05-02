@@ -39,7 +39,8 @@
 #include "characters.h"
 #include "kernal.h"
 
-#include "c1541.h"
+#include "1540-c000.h"
+#include "1541-e000.h"
 
 static unsigned trace_begin_frame = 0;
 static std::string prg_path;
@@ -445,7 +446,8 @@ int main(int argc, char *argv[]) {
   dataslots[200] = std::make_pair(basic_bin, basic_bin_len);
   dataslots[201] = std::make_pair(characters_bin, characters_bin_len);
   dataslots[202] = std::make_pair(kernal_bin, kernal_bin_len);
-  dataslots[203] = std::make_pair(c1541_bin, c1541_bin_len);
+  dataslots[203] = std::make_pair(__1540_c000_bin, __1540_c000_bin_len);
+  dataslots[204] = std::make_pair(__1541_e000_bin, __1541_e000_bin_len);
 
   // Load .prg into slot
   std::vector<uint8_t> prg_slot;
