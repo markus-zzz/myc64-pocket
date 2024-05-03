@@ -26,7 +26,8 @@
 static uint32_t track_offsets[G64_NUM_TRACKS];
 static uint16_t track_sizes[G64_NUM_TRACKS];
 
-static uint8_t track_no_prev;
+static volatile uint8_t track_no;
+static volatile uint8_t g64_loaded;
 
 static void load_track(uint8_t track_id) {
   while ((*TARGET_0 >> 16) != 0x6F6B)
@@ -41,7 +42,7 @@ static void load_track(uint8_t track_id) {
   *TARGET_0 = 0x636D0180;
 }
 
-void g64_init() {
+void load_g64() {
   // Setup track offsets
   for (unsigned i = 0; i < G64_NUM_TRACKS; i++) {
     *TARGET_20 = 110;                            // slot-id
@@ -71,18 +72,34 @@ void g64_init() {
     track_sizes[i] = *p16;
   }
 
-  track_no_prev = 0xff;
+  track_no = 0xff;
+  g64_loaded = 1;
+}
+
+void g64_init() {
+  track_no = 0xff;
+  g64_loaded = 0;
 }
 
 void g64_irq() {
+  if (!g64_loaded)
+    return;
   uint32_t status = *C1541_STATUS;
-  uint8_t track_no = status & 0x7f;
-  if (track_no != track_no_prev) {
-    load_track(track_no);
-    track_no_prev = track_no;
+  uint8_t req_track_no = status & 0x7f;
+  if (req_track_no != track_no) {
+    load_track(req_track_no);
+    track_no = req_track_no;
   }
 }
 
-void g64_handle() {}
+void g64_handle() {
+  if (KEYB_POSEDGE(face_a)) {
+    load_g64();
+  }
+}
 
-void g64_draw() {}
+void g64_draw() {
+  unsigned x = 2;
+  x = osd_put_str(x, 20, "TRACK: $", 0);
+  x = osd_put_hex8(x, 20, track_no, 0);
+}

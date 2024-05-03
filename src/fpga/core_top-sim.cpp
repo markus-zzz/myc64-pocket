@@ -435,6 +435,9 @@ int main(int argc, char *argv[]) {
       ->check(CLI::ExistingFile);
   app.add_option("--g64", g64_path, ".g64 file to put in slot")
       ->check(CLI::ExistingFile);
+  app.add_option("--iec-trace", iec_trace_path, ".fst trace output");
+  app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
+                 "Start trace on given frame")
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables

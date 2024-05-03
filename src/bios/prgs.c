@@ -118,6 +118,7 @@ unsigned strlen(const char *p) {
 }
 
 void prgs_draw() {
+  return;
   osd_put_str(2, 20, "INJECT PRG SLOT", 0);
   unsigned offset = osd_put_str(10, 30, "#0:", 0);
 
