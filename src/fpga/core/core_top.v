@@ -562,6 +562,8 @@ module core_top (
   wire [10:0] c1541_track_mem_addr;
   wire [31:0] c1541_track_mem_data;
   wire [6:0] c1541_track_no;
+  wire c1541_led_on;
+  wire c1541_motor_on;
 
   my1541_top u_my1541 (
       .rst(~c64_ctrl[0]),
@@ -573,8 +575,10 @@ module core_top (
       .i_rom_data(c1541_rom_data),
       .o_track_addr(c1541_track_mem_addr),
       .i_track_data(c1541_track_mem_data),
-      .o_track_no(c1541_track_no),
       .i_track_len(c1541_track_len),
+      .o_track_no(c1541_track_no),
+      .o_led_on(c1541_led_on),
+      .o_motor_on(c1541_motor_on),
       .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
       .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
       .i_iec_atn_in(iec_atn),
@@ -783,7 +787,7 @@ module core_top (
       32'h2000_0028: cpu_mem_rdata = cont3_trig_s;
       32'h2000_002c: cpu_mem_rdata = cont4_trig_s;
       32'h3000_000c: cpu_mem_rdata = c64_ctrl;
-      32'h3000_0100: cpu_mem_rdata = c1541_track_no;
+      32'h3000_0100: cpu_mem_rdata = {c1541_motor_on, c1541_led_on, c1541_track_no};
       32'h4xxx_xxxx: cpu_mem_rdata = bridge_rdata;
       32'h7xxx_xxxx: cpu_mem_rdata = bridge_dpram_rdata;
       32'h9xxx_xxxx: cpu_mem_rdata = dataslot_table_rd_data_cpu;

@@ -27,6 +27,8 @@ static uint32_t track_offsets[G64_NUM_TRACKS];
 static uint16_t track_sizes[G64_NUM_TRACKS];
 
 static volatile uint8_t track_no;
+static volatile uint8_t led_on;
+static volatile uint8_t motor_on;
 static volatile uint8_t g64_loaded;
 
 static void load_track(uint8_t track_id) {
@@ -86,6 +88,8 @@ void g64_irq() {
     return;
   uint32_t status = *C1541_STATUS;
   uint8_t req_track_no = status & 0x7f;
+  led_on = (status >> 7) & 1;
+  motor_on = (status >> 8) & 1;
   if (req_track_no != track_no) {
     load_track(req_track_no);
     track_no = req_track_no;
@@ -100,6 +104,10 @@ void g64_handle() {
 
 void g64_draw() {
   unsigned x = 2;
-  x = osd_put_str(x, 20, "TRACK: $", 0);
+  x = osd_put_str(x, 20, "MOTOR:", 0);
+  osd_put_char(x, 20, motor_on ? '1' : '0', 0);
+  x = osd_put_str(x + 16, 20, "LED:", 0);
+  osd_put_char(x, 20, led_on ? '1' : '0', 0);
+  x = osd_put_str(x + 16, 20, "TRACK:$", 0);
   x = osd_put_hex8(x, 20, track_no, 0);
 }
