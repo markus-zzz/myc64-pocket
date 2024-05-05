@@ -217,6 +217,8 @@ class MyC64(Elaboratable):
         u_cia1.i_addr.eq(bus_addr),
         u_cia1.i_we.eq(bus_we),
         u_cia1.i_data.eq(bus_do),
+        u_cia1.i_pa.eq(0xff),
+        u_cia1.i_pb.eq(0xff),
         # CIA-2
         u_cia2.clk_1mhz_ph_en.eq(clk_1mhz_ph2_en),
         u_cia2.i_cs.eq(cia2_cs),
@@ -224,6 +226,7 @@ class MyC64(Elaboratable):
         u_cia2.i_we.eq(bus_we),
         u_cia2.i_data.eq(bus_do),
         u_cia2.i_pa.eq(0xff),
+        u_cia2.i_pb.eq(0xff),
         u_cia2.i_pa[6].eq(self.i_iec_clock_in),
         u_cia2.i_pa[7].eq(self.i_iec_data_in),
 

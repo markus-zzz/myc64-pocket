@@ -163,10 +163,10 @@ class Cia(Elaboratable):
       with m.Switch(self.i_addr):
         with m.Case(Reg.PRA):
           for idx in range(8):
-            m.d.comb += self.o_data[idx].eq(Mux(reg_ddra[idx], reg_pra[idx], self.i_pa[idx]))
+            m.d.comb += self.o_data[idx].eq(Mux(reg_ddra[idx], reg_pra[idx] & self.i_pa[idx], self.i_pa[idx]))
         with m.Case(Reg.PRB):
           for idx in range(8):
-            m.d.comb += self.o_data[idx].eq(Mux(reg_ddrb[idx], reg_prb[idx], self.i_pb[idx]))
+            m.d.comb += self.o_data[idx].eq(Mux(reg_ddrb[idx], reg_prb[idx] & self.i_pb[idx], self.i_pb[idx]))
         with m.Case(Reg.DDRA):
           m.d.comb += self.o_data.eq(reg_ddra)
         with m.Case(Reg.DDRB):
