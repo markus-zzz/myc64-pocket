@@ -43,6 +43,8 @@
 #include "1541-e000.h"
 
 static unsigned trace_begin_frame = 0;
+static std::string iec_trace_path;
+static unsigned iec_trace_begin_frame = 0;
 static std::string prg_path;
 static std::string g64_path;
 static bool dump_video = false;
@@ -435,9 +437,9 @@ int main(int argc, char *argv[]) {
       ->check(CLI::ExistingFile);
   app.add_option("--g64", g64_path, ".g64 file to put in slot")
       ->check(CLI::ExistingFile);
-  app.add_option("--iec-trace", iec_trace_path, ".fst trace output");
+  app.add_option("--iec-trace", iec_trace_path, "IEC trace output to .csv");
   app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
-                 "Start trace on given frame")
+                 "Start IEC trace on given frame");
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables
@@ -459,7 +461,7 @@ int main(int argc, char *argv[]) {
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
                               std::istreambuf_iterator<char>());
     prg_slot = std::move(data);
-    dataslots[100] = std::make_pair(prg_slot.data(), prg_slot.size());
+    dataslots[0] = std::make_pair(prg_slot.data(), prg_slot.size());
   }
 
   // Load .g64 into slot
@@ -469,7 +471,7 @@ int main(int argc, char *argv[]) {
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
                               std::istreambuf_iterator<char>());
     g64_slot = std::move(data);
-    dataslots[110] = std::make_pair(g64_slot.data(), g64_slot.size());
+    dataslots[1] = std::make_pair(g64_slot.data(), g64_slot.size());
   }
 
   VICIIFrameDumper myVICIIFrameDumper;

@@ -32,6 +32,7 @@ void keyboard_virt_draw();
 void prgs_init();
 void prgs_handle();
 void prgs_draw();
+void prgs_irq();
 
 void g64_init();
 void g64_handle();
@@ -61,6 +62,8 @@ uint32_t cont1_key_p = 0;
 uint32_t cont1_key = 0;
 
 uint64_t c64_keyb_mask = 0;
+
+uint8_t updated_slots;
 
 static volatile int osd_idx;
 static volatile int osd_on;
@@ -162,6 +165,9 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   timer_start(TIMER_TIMEOUT);
   timer_ticks++;
 
+  updated_slots = *UPDATED_SLOTS;
+
+  prgs_irq();
   g64_irq();
 
   // Prologue

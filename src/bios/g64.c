@@ -20,6 +20,7 @@
 
 #include "bios.h"
 
+#define G64_SLOT_ID 1
 #define G64_NUM_TRACKS 84
 #define G64_TRACK_OFFSET_TABLE 12
 
@@ -37,7 +38,7 @@ static void load_track(uint8_t track_id) {
   // Write to track size register before we fire off the refill
   *C1541_TRACK_LEN = track_sizes[track_id];
 
-  *TARGET_20 = 110;                     // slot-id
+  *TARGET_20 = G64_SLOT_ID;             // slot-id
   *TARGET_24 = track_offsets[track_id]; // slot-offset
   *TARGET_28 = 0x90000000;
   *TARGET_2C = track_sizes[track_id]; // length
@@ -47,7 +48,7 @@ static void load_track(uint8_t track_id) {
 void load_g64() {
   // Setup track offsets
   for (unsigned i = 0; i < G64_NUM_TRACKS; i++) {
-    *TARGET_20 = 110;                            // slot-id
+    *TARGET_20 = G64_SLOT_ID;                    // slot-id
     *TARGET_24 = G64_TRACK_OFFSET_TABLE + i * 4; // slot-offset
     *TARGET_28 = 0x70000000;
     *TARGET_2C = 4; // length
@@ -63,7 +64,7 @@ void load_g64() {
   for (unsigned i = 0; i < G64_NUM_TRACKS; i++) {
     if (!track_offsets[i])
       continue;
-    *TARGET_20 = 110;                  // slot-id
+    *TARGET_20 = G64_SLOT_ID;          // slot-id
     *TARGET_24 = track_offsets[i] - 2; // slot-offset
     *TARGET_28 = 0x70000000;
     *TARGET_2C = 2; // length
@@ -84,6 +85,11 @@ void g64_init() {
 }
 
 void g64_irq() {
+  if (updated_slots & (1 << G64_SLOT_ID)) {
+    load_g64();
+    return;
+  }
+
   if (!g64_loaded)
     return;
   uint32_t status = *C1541_STATUS;
@@ -96,11 +102,7 @@ void g64_irq() {
   }
 }
 
-void g64_handle() {
-  if (KEYB_POSEDGE(face_a)) {
-    load_g64();
-  }
-}
+void g64_handle() {}
 
 void g64_draw() {
   unsigned x = 2;

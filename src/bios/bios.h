@@ -61,6 +61,8 @@
 #define TARGET_48 ((volatile uint32_t *)0x40000048)
 #define TARGET_4C ((volatile uint32_t *)0x4000004c)
 
+#define UPDATED_SLOTS ((volatile uint32_t *)0x40000080)
+
 #define BRIDGE_DPRAM ((volatile uint8_t *)0x70000000)
 #define BRIDGE_DS_TABLE ((volatile uint32_t *)0x90000000)
 
@@ -98,6 +100,7 @@ extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 
 extern uint64_t c64_keyb_mask;
+extern uint8_t updated_slots;
 
 void osd_clear();
 void osd_put_char(int x, int y, char c, int invert);

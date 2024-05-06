@@ -4,7 +4,7 @@
         "data_slots": [
     {
         "name": "PRG Slot #0",
-        "id": "100",
+        "id": "0",
         "required": false,
         "deferload": true,
         "parameters": 9,
@@ -13,7 +13,7 @@
     },
     {
         "name": "G64 Slot #0",
-        "id": "110",
+        "id": "1",
         "required": false,
         "deferload": true,
         "parameters": 9,

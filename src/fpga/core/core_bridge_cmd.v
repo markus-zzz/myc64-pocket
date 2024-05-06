@@ -119,6 +119,8 @@ module core_bridge_cmd (
   reg [31:0] target_48;
   reg [31:0] target_4C;
 
+  reg [7:0] updated_slots;
+
   localparam [3:0] TARG_ST_IDLE = 'd0;
   localparam [3:0] TARG_ST_READYTORUN = 'd1;
   localparam [3:0] TARG_ST_DISPMSG = 'd2;
@@ -139,6 +141,7 @@ module core_bridge_cmd (
     reset_n <= 0;
     osnotify_inmenu <= 0;
     status_setup_done_queue <= 0;
+    updated_slots <= 0;
   end
 
   // See article 'Crossing the abyss: asynchronous signals in a synchronous world'
@@ -290,6 +293,9 @@ module core_bridge_cmd (
           16'h008A: begin
             // Data slot update
             // XXX: Set bit in register corresponding to slot idx. Bit clears when register is read.
+            if (host_20[31:3] == 0) begin
+              updated_slots[host_20[2:0]] <= 1'b1;
+            end
             hstate <= ST_DONE_OK;
           end
           16'h008F: begin
@@ -382,6 +388,10 @@ module core_bridge_cmd (
         8'h44: o_cpu_rdata <= target_44;
         8'h48: o_cpu_rdata <= target_48;
         8'h4C: o_cpu_rdata <= target_4C;
+        8'h80: begin
+          o_cpu_rdata <= updated_slots;
+          updated_slots <= 0;
+        end
       endcase
     end
 
