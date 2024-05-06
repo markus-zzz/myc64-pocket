@@ -287,6 +287,11 @@ module core_bridge_cmd (
             host_resultcode <= 0;
             hstate <= ST_DONE_CODE;
           end
+          16'h008A: begin
+            // Data slot update
+            // XXX: Set bit in register corresponding to slot idx. Bit clears when register is read.
+            hstate <= ST_DONE_OK;
+          end
           16'h008F: begin
             // Data slot access all complete
             hstate <= ST_DONE_OK;
