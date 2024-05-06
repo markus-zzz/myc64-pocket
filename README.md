@@ -63,6 +63,41 @@ wiki page [Working
 PRGs](https://github.com/markus-zzz/myc64-pocket/wiki/Working-PRGs) that anyone
 (on github) can edit. Please feel free to update it with your findings!
 
+### D64/G64
+
+Experimental 1541 drive support (read only) is included. As the core tries to
+emulate the real drive using the original ROMs it needs the raw GCR bitstream
+that the read head would see as input. In other words the common `.d64` format
+is not directly supported but rather the lower level `.g64` format must be
+used.
+
+A bit further down the road the housekeeping CPU could probably perform this
+conversion on the fly but right now `.d64` files need to be converted to `.g64`
+format manually.
+
+The utility program `nibconv` from
+[NIBTools](https://c64preservation.com/dp.php?pg=nibtools) can be used to
+convert between `.d64` and `.g64`. For Linux it is obtained and built as
+follows (for windows pre-built executables are available).
+
+```
+$ git clone --recurse-submodules https://github.com/OpenCBM/OpenCBM.git
+$ cd OpenCBM
+$ make -f LINUX/Makefile
+```
+
+Once the `.g64` slot is loaded from the **Core Settings->Load G64 Slot #0**
+file browser normal C64 disk commands can be applied such as
+
+```
+LOAD"$",8
+LIST
+```
+
+to get a directory listing of the disk. Note that on the C64 keyboard `"` is
+`<SHIFT>+2` and `$` is `<SHIFT>+4` (read the section about sticky keys for how
+to access the shift modifier on the virtual keyboard).
+
 ## Usage
 
 Pressing **left-of-analogue** brings up (toggles) the on-screen-display
