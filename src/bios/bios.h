@@ -46,6 +46,9 @@
 #define KEYB_MASK_1 ((volatile uint32_t *)0x30000008)
 #define C64_CTRL ((volatile uint32_t *)0x3000000c)
 
+#define C1541_STATUS ((volatile uint32_t *)0x30000100)
+#define C1541_TRACK_LEN ((volatile uint32_t *)0x30000104)
+
 #define TARGET_0 ((volatile uint32_t *)0x40000000)
 #define TARGET_4 ((volatile uint32_t *)0x40000004)
 #define TARGET_8 ((volatile uint32_t *)0x40000008)
@@ -57,6 +60,8 @@
 #define TARGET_44 ((volatile uint32_t *)0x40000044)
 #define TARGET_48 ((volatile uint32_t *)0x40000048)
 #define TARGET_4C ((volatile uint32_t *)0x4000004c)
+
+#define UPDATED_SLOTS ((volatile uint32_t *)0x40000080)
 
 #define BRIDGE_DPRAM ((volatile uint8_t *)0x70000000)
 #define BRIDGE_DS_TABLE ((volatile uint32_t *)0x90000000)
@@ -95,6 +100,7 @@ extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 
 extern uint64_t c64_keyb_mask;
+extern uint8_t updated_slots;
 
 void osd_clear();
 void osd_put_char(int x, int y, char c, int invert);

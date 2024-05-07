@@ -1,0 +1,112 @@
+<mxfile host="Electron" modified="2024-05-06T16:01:55.075Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="zfHL-mfgndVM3eKqt5Pi" version="24.2.5" type="device">
+  <diagram name="Page-1" id="YQH3ZXWPqJVPIsmOGbbQ">
+    <mxGraphModel dx="1643" dy="1008" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;fillStyle=hatch;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="480" y="30" width="508" height="455" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-32" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="510" y="70" width="100" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-18" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="661" y="73" width="220" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillStyle=hatch;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="240" height="361" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-4" value="Bridge clock domain 74 MHz" style="text;strokeColor=none;align=center;fillColor=none;html=1;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="10" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-5" value="Pixel clock domain 8 MHz" style="text;strokeColor=none;align=center;fillColor=none;html=1;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="550" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-6" value="Housekeeping CPU&lt;div&gt;(PicoRV32)&lt;/div&gt;" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="80" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-7" value="ROM 8KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="520" y="180" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-8" value="RAM 4KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="520" y="220" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-9" value="OSD" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="260" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-10" value="Scratch DP RAM 256B" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="320.5" y="162" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-11" value="Dataslot table&lt;div&gt;DP RAM&lt;/div&gt;&lt;div&gt;32 entries&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="320.5" y="242" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-12" value="&lt;div&gt;G64 track DP RAM 8KB&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="320.5" y="322" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-13" value="MyC64" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="791" y="83" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-14" value="BASIC&lt;div&gt;ROM 8KB&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="671" y="123" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-15" value="&lt;div&gt;KERNAL&lt;/div&gt;&lt;div&gt;ROM 8KB&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="671" y="163" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-16" value="&lt;div&gt;CHARGEN&lt;/div&gt;&lt;div&gt;ROM 4KB&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="671" y="203" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-17" value="RAM 64KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="791" y="203" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-19" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="748" y="275" width="220" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-20" value="My1541" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="868" y="300" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-21" value="ROM 8KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="758" y="285" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-22" value="ROM 8KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="758" y="325" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-23" value="RAM 2KB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="758" y="365" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-26" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="275.5" y="337" width="45" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-27" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="274.5" y="257" width="46" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-28" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="274.5" y="177" width="46" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-29" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="440.5" y="177" width="45" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-30" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="440.5" y="256" width="45" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-31" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.66;dx=16.6;notch=0;" vertex="1" parent="1">
+          <mxGeometry x="440.5" y="337" width="44" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-33" value="" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="478" y="294.5" width="270" height="181" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-34" value="Bridge mapped registers" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="176" y="82" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-35" value="Bridge cmd FSM" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="62" y="82" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-36" value="0x4000_0000 CDC" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.arrow;dy=0.6;dx=40;flipH=1;notch=0;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="264" y="87" width="232" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v9chFrQSOXbXfwMZeR-38" value="" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="52.5" y="175" width="215" height="141.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

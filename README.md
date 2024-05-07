@@ -15,17 +15,22 @@ the Analogue Pocket's SD card.
 ### System ROMs
 
 For legal reasons all ROMs are kept outside the FPGA bitstream distributed
-here. The three Commodore ROMs can be fetched with
+here. The Commodore ROMs (three for the C64 and two for the 1541) can be
+fetched with
 ```
 wget http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/basic.901226-01.bin
 wget http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/characters.901225-01.bin
 wget http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/kernal.901227-03.bin
+wget http://www.zimmers.net/anonftp/pub/cbm/firmware/drives/new/1541/1540-c000.325302-01.bin
+wget http://www.zimmers.net/anonftp/pub/cbm/firmware/drives/new/1541/1541-e000.901229-01.bin
 ```
 they then need to be placed in `/media/Assets/c64/common/` as follows
 ```
 /media/Assets/c64/common/basic.bin
 /media/Assets/c64/common/characters.bin
 /media/Assets/c64/common/kernal.bin
+/media/Assets/c64/common/1540-c000.bin
+/media/Assets/c64/common/1541-e000.bin
 ```
 
 ### User PRGs
@@ -57,6 +62,41 @@ correctly. So to avoid frustration and help new users out we have the following
 wiki page [Working
 PRGs](https://github.com/markus-zzz/myc64-pocket/wiki/Working-PRGs) that anyone
 (on github) can edit. Please feel free to update it with your findings!
+
+### D64/G64
+
+Experimental 1541 drive support (read only) is included. As the core tries to
+emulate the real drive using the original ROMs it needs the raw GCR bitstream
+that the read head would see as input. In other words the common `.d64` format
+is not directly supported but rather the lower level `.g64` format must be
+used.
+
+A bit further down the road the housekeeping CPU could probably perform this
+conversion on the fly but right now `.d64` files need to be converted to `.g64`
+format manually.
+
+The utility program `nibconv` from
+[NIBTools](https://c64preservation.com/dp.php?pg=nibtools) can be used to
+convert between `.d64` and `.g64`. For Linux it is obtained and built as
+follows (for windows pre-built executables are available).
+
+```
+$ git clone --recurse-submodules https://github.com/OpenCBM/OpenCBM.git
+$ cd OpenCBM
+$ make -f LINUX/Makefile
+```
+
+Once the `.g64` slot is loaded from the **Core Settings->Load G64 Slot #0**
+file browser normal C64 disk commands can be applied such as
+
+```
+LOAD"$",8
+LIST
+```
+
+to get a directory listing of the disk. Note that on the C64 keyboard `"` is
+`<SHIFT>+2` and `$` is `<SHIFT>+4` (read the section about sticky keys for how
+to access the shift modifier on the virtual keyboard).
 
 ## Usage
 

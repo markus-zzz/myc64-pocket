@@ -19,6 +19,11 @@ module core_top (
     input wire clk_74b,  // mainclk1
 `ifdef __VERILATOR__
     input wire reset_n,
+    output wire debug_iec_atn,
+    output wire debug_iec_data,
+    output wire debug_iec_clock,
+    output wire debug_1mhz_ph1_en,
+    output wire debug_1mhz_ph2_en,
 `endif
 
     ///////////////////////////////////////////////////
@@ -500,6 +505,27 @@ module core_top (
     endcase
   end
 
+  // IEC
+  wire iec_atn;
+  wire iec_data;
+  wire iec_clock;
+  wire iec_c64_data_out;
+  wire iec_c64_clock_out;
+  wire iec_1541_data_out;
+  wire iec_1541_clock_out;
+
+  // Any device can pull clock or data low
+  assign iec_data = iec_c64_data_out & iec_1541_data_out;
+  assign iec_clock = iec_c64_clock_out & iec_1541_clock_out;
+
+`ifdef __VERILATOR__
+    assign debug_iec_atn = iec_atn;
+    assign debug_iec_data = iec_data;
+    assign debug_iec_clock = iec_clock;
+    assign debug_1mhz_ph1_en = c64_clk_1mhz_ph1_en;
+    assign debug_1mhz_ph2_en = c64_clk_1mhz_ph2_en;
+`endif
+
   myc64_top u_myc64 (
       .rst(~c64_ctrl[0]),
       .clk(video_rgb_clock),
@@ -519,7 +545,47 @@ module core_top (
       .o_ram_main_data(c64_ram_wdata),
       .o_ram_main_we(c64_ram_we),
       .o_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
-      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en)
+      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
+      .o_iec_atn_out(iec_atn),
+      .i_iec_data_in(iec_data),
+      .o_iec_data_out(iec_c64_data_out),
+      .i_iec_clock_in(iec_clock),
+      .o_iec_clock_out(iec_c64_clock_out)
+  );
+
+  wire [15:0] c1541_bus_addr;
+  wire [7:0] c1541_ram_rdata;
+  wire [7:0] c1541_ram_wdata;
+  wire [7:0] c1541_rom_data;
+  wire c1541_ram_we;
+
+  wire [10:0] c1541_track_mem_addr;
+  wire [31:0] c1541_track_mem_data;
+  wire [6:0] c1541_track_no;
+  wire c1541_led_on;
+  wire c1541_motor_on;
+
+  my1541_top u_my1541 (
+      .rst(~c64_ctrl[0]),
+      .clk(video_rgb_clock),
+      .o_addr(c1541_bus_addr),
+      .i_ram_data(c1541_ram_rdata),
+      .o_ram_data(c1541_ram_wdata),
+      .o_ram_we(c1541_ram_we),
+      .i_rom_data(c1541_rom_data),
+      .o_track_addr(c1541_track_mem_addr),
+      .i_track_data(c1541_track_mem_data),
+      .i_track_len(c1541_track_len),
+      .o_track_no(c1541_track_no),
+      .o_led_on(c1541_led_on),
+      .o_motor_on(c1541_motor_on),
+      .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
+      .i_iec_atn_in(iec_atn),
+      .i_iec_data_in(iec_data),
+      .o_iec_data_out(iec_1541_data_out),
+      .i_iec_clock_in(iec_clock),
+      .o_iec_clock_out(iec_1541_clock_out)
   );
 
   wire [15:0] c64_bus_addr;
@@ -547,7 +613,9 @@ module core_top (
   end
 
 
-
+  //
+  // Memories for MyC64
+  //
   spram #(
       .aw(16),
       .dw(8)
@@ -607,6 +675,37 @@ module core_top (
       .we  (ext_rom_kernal_we)
   );
 
+  //
+  // Memories for My1541
+  //
+  spram #(
+      .aw(11),
+      .dw(8)
+  ) u_c1541_ram (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(c1541_bus_addr),
+      .do  (c1541_ram_rdata),
+      .di  (c1541_ram_wdata),
+      .we  (c1541_ram_we)
+  );
+
+  spram #(
+      .aw(14),
+      .dw(8)
+  ) u_c1541_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_1541_we ? ext_addr : c1541_bus_addr),
+      .do  (c1541_rom_data),
+      .di  (ext_data),
+      .we  (ext_rom_1541_we)
+  );
+
   wire cpu_mem_valid;
   wire cpu_mem_instr;
   reg cpu_mem_ready;
@@ -628,11 +727,13 @@ module core_top (
   wire ext_rom_basic_we;
   wire ext_rom_char_we;
   wire ext_rom_kernal_we;
+  wire ext_rom_1541_we;
 
   assign ext_ram_we = (cpu_mem_addr[31:16] == 16'h5000) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_basic_we = (cpu_mem_addr[31:16] == 16'h5001) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_char_we = (cpu_mem_addr[31:16] == 16'h5002) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_kernal_we = (cpu_mem_addr[31:16] == 16'h5003) && cpu_mem_valid && (cpu_mem_wstrb != 0);
+  assign ext_rom_1541_we = (cpu_mem_addr[31:16] == 16'h5004) && cpu_mem_valid && (cpu_mem_wstrb != 0);
 
   always @* begin
     case (cpu_mem_wstrb)
@@ -686,6 +787,7 @@ module core_top (
       32'h2000_0028: cpu_mem_rdata = cont3_trig_s;
       32'h2000_002c: cpu_mem_rdata = cont4_trig_s;
       32'h3000_000c: cpu_mem_rdata = c64_ctrl;
+      32'h3000_0100: cpu_mem_rdata = {c1541_motor_on, c1541_led_on, c1541_track_no};
       32'h4xxx_xxxx: cpu_mem_rdata = bridge_rdata;
       32'h7xxx_xxxx: cpu_mem_rdata = bridge_dpram_rdata;
       32'h9xxx_xxxx: cpu_mem_rdata = dataslot_table_rd_data_cpu;
@@ -701,10 +803,15 @@ module core_top (
   end
 
   reg [4:0] c64_ctrl;
+  reg [12:0] c1541_track_len;
   always @(posedge clk) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
       c64_ctrl <= cpu_mem_wdata[4:0];
+    else if (cpu_mem_addr == 32'h30000104 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111) begin
+      c1541_track_len <= cpu_mem_wdata[12:0];
+      $display("track_len: %d, track_no: %d", c1541_track_len, c1541_track_no);
+    end
   end
 
   reg [63:0] keyboard_mask;
@@ -880,6 +987,26 @@ module core_top (
       .b_addr(cpu_mem_addr[31:2]),
       .b_din (32'h0),
       .b_dout(dataslot_table_rd_data_cpu)
+  );
+
+  // 8KB of DP track memory for 1541. Fed by bridge, read by 1541
+  bram_block_dp #(
+      .DATA(32),
+      .ADDR(11)
+  ) u_bridge_1541_track_ram (
+      .a_clk(clk_74a),
+      .a_wr(bridge_wr && bridge_addr[31:28] == 4'h9),
+      .a_addr(bridge_addr[31:2]),
+      .a_din({
+        bridge_wr_data[7:0], bridge_wr_data[15:8], bridge_wr_data[23:16], bridge_wr_data[31:24]
+      }),
+      .a_dout(  /* NC */),
+
+      .b_clk (clk),
+      .b_wr  (1'b0),
+      .b_addr(c1541_track_mem_addr),
+      .b_din (32'h0),
+      .b_dout(c1541_track_mem_data)
   );
 
 endmodule

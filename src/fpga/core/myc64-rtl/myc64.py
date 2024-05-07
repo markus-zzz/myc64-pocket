@@ -47,10 +47,17 @@ class MyC64(Elaboratable):
     self.o_clk_1mhz_ph1_en = Signal()
     self.o_clk_1mhz_ph2_en = Signal()
 
+    self.o_iec_atn_out = Signal()
+    self.i_iec_data_in = Signal()
+    self.o_iec_data_out = Signal()
+    self.i_iec_clock_in = Signal()
+    self.o_iec_clock_out = Signal()
+
     self.ports = [
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
-        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en
+        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
+        self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
     ]
 
   def elaborate(self, platform):
@@ -210,17 +217,27 @@ class MyC64(Elaboratable):
         u_cia1.i_addr.eq(bus_addr),
         u_cia1.i_we.eq(bus_we),
         u_cia1.i_data.eq(bus_do),
+        u_cia1.i_pa.eq(0xff),
+        u_cia1.i_pb.eq(0xff),
         # CIA-2
         u_cia2.clk_1mhz_ph_en.eq(clk_1mhz_ph2_en),
         u_cia2.i_cs.eq(cia2_cs),
         u_cia2.i_addr.eq(bus_addr),
         u_cia2.i_we.eq(bus_we),
         u_cia2.i_data.eq(bus_do),
-        u_cia2.i_pa.eq(C(0xff, 8)),
+        u_cia2.i_pa.eq(0xff),
+        u_cia2.i_pb.eq(0xff),
+        u_cia2.i_pa[6].eq(self.i_iec_clock_in),
+        u_cia2.i_pa[7].eq(self.i_iec_data_in),
+
         # Bus matrix
         bus_addr.eq(Mux(vic_cycle | u_vic.o_steal_bus, Cat(u_vic.o_addr, ~u_cia2.o_pa[0:2]), cpu_addr)),
         bus_we.eq(cpu_we & ~vic_cycle & ~u_vic.o_steal_bus),
-        bus_do.eq(cpu_do)
+        bus_do.eq(cpu_do),
+        # IEC
+        self.o_iec_atn_out.eq(~u_cia2.o_pa[3]),
+        self.o_iec_clock_out.eq(~u_cia2.o_pa[4]),
+        self.o_iec_data_out.eq(~u_cia2.o_pa[5]),
     ]
 
     with m.If((bus_addr[12:16] == 0b0001) | (bus_addr[12:16] == 0b1001)):

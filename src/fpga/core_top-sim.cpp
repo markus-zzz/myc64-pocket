@@ -39,8 +39,14 @@
 #include "characters.h"
 #include "kernal.h"
 
+#include "1540-c000.h"
+#include "1541-e000.h"
+
 static unsigned trace_begin_frame = 0;
+static std::string iec_trace_path;
+static unsigned iec_trace_begin_frame = 0;
 static std::string prg_path;
+static std::string g64_path;
 static bool dump_video = false;
 static bool dump_ram = false;
 static unsigned exit_frame = 0;
@@ -224,11 +230,73 @@ struct VICIIFrameDumper {
           }
         }
 
+        if (!g64_path.empty()) {
+          dut->cont3_key = 0;
+          dut->cont3_joy = 0;
+          switch (m_FrameIdx) {
+          default:
+            break;
+          case 150:
+            dut->cont3_joy = 0x0f; // L
+            break;
+          case 151:
+            dut->cont3_joy = 0x12; // O
+            break;
+          case 152:
+            dut->cont3_joy = 0x04; // A
+            break;
+          case 153:
+            dut->cont3_joy = 0x07; // D
+            break;
+          case 154:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x1f; // "
+            break;
+          case 155:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x21; // $
+            break;
+          case 156:
+            dut->cont3_key = 0x0200;
+            dut->cont3_joy = 0x1f; // "
+            break;
+          case 157:
+            dut->cont3_joy = 0x36; // ,
+            break;
+          case 158:
+            dut->cont3_joy = 0x25; // 8
+            break;
+          case 159:
+            dut->cont3_joy = 0x28; // <RETURN>
+            break;
+          case 350:
+            dut->cont3_joy = 0x0f; // L
+            break;
+          case 351:
+            dut->cont3_joy = 0x0c; // I
+            break;
+          case 352:
+            dut->cont3_joy = 0x16; // S
+            break;
+          case 353:
+            dut->cont3_joy = 0x17; // T
+            break;
+          case 354:
+            dut->cont3_joy = 0x28; // <RETURN>
+            break;
+          }
+        }
+
         CM.flushTrace();
         if (exit_frame != 0 && exit_frame == m_FrameIdx) {
           exit(0);
         }
         m_FrameIdx++;
+      }
+
+      if (m_FrameIdx > 150 && dut->debug_1mhz_ph1_en) {
+        fprintf(stderr, "%d,%d,%d\n", dut->debug_iec_atn, dut->debug_iec_clock,
+                dut->debug_iec_data);
       }
     }
   }
@@ -367,6 +435,11 @@ int main(int argc, char *argv[]) {
       ->needs("--trace");
   app.add_option("--prg", prg_path, ".prg file to put in slot")
       ->check(CLI::ExistingFile);
+  app.add_option("--g64", g64_path, ".g64 file to put in slot")
+      ->check(CLI::ExistingFile);
+  app.add_option("--iec-trace", iec_trace_path, "IEC trace output to .csv");
+  app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
+                 "Start IEC trace on given frame");
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables
@@ -378,14 +451,27 @@ int main(int argc, char *argv[]) {
   dataslots[200] = std::make_pair(basic_bin, basic_bin_len);
   dataslots[201] = std::make_pair(characters_bin, characters_bin_len);
   dataslots[202] = std::make_pair(kernal_bin, kernal_bin_len);
+  dataslots[203] = std::make_pair(__1540_c000_bin, __1540_c000_bin_len);
+  dataslots[204] = std::make_pair(__1541_e000_bin, __1541_e000_bin_len);
 
+  // Load .prg into slot
   std::vector<uint8_t> prg_slot;
   if (!prg_path.empty()) {
     std::ifstream instream(prg_path, std::ios::in | std::ios::binary);
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
                               std::istreambuf_iterator<char>());
     prg_slot = std::move(data);
-    dataslots[100] = std::make_pair(prg_slot.data(), prg_slot.size());
+    dataslots[0] = std::make_pair(prg_slot.data(), prg_slot.size());
+  }
+
+  // Load .g64 into slot
+  std::vector<uint8_t> g64_slot;
+  if (!g64_path.empty()) {
+    std::ifstream instream(g64_path, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
+                              std::istreambuf_iterator<char>());
+    g64_slot = std::move(data);
+    dataslots[1] = std::make_pair(g64_slot.data(), g64_slot.size());
   }
 
   VICIIFrameDumper myVICIIFrameDumper;

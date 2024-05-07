@@ -4,12 +4,21 @@
         "data_slots": [
     {
         "name": "PRG Slot #0",
-        "id": "100",
+        "id": "0",
         "required": false,
         "deferload": true,
         "parameters": 9,
         "filename": "",
         "extensions": ["prg"]
+    },
+    {
+        "name": "G64 Slot #0",
+        "id": "1",
+        "required": false,
+        "deferload": true,
+        "parameters": 9,
+        "filename": "",
+        "extensions": ["g64"]
     },
     {
         "name": "Basic ROM",
@@ -38,6 +47,26 @@
         "deferload": true,
         "parameters": 8,
         "filename": "kernal.bin",
+        "extensions": ["bin"],
+        "address": 0
+    },
+    {
+        "name": "1540-c000 ROM",
+        "id": "203",
+        "required": true,
+        "deferload": true,
+        "parameters": 8,
+        "filename": "1540-c000.bin",
+        "extensions": ["bin"],
+        "address": 0
+    },
+    {
+        "name": "1541-e000 ROM",
+        "id": "204",
+        "required": true,
+        "deferload": true,
+        "parameters": 8,
+        "filename": "1541-e000.bin",
         "extensions": ["bin"],
         "address": 0
     }

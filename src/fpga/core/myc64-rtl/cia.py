@@ -129,13 +129,13 @@ class Cia(Elaboratable):
     # bus writes
     with m.If(self.clk_1mhz_ph_en & self.i_cs & self.i_we):
       with m.Switch(self.i_addr):
-        with m.Case(0x0):
+        with m.Case(Reg.PRA):
           m.d.sync += reg_pra.eq(self.i_data)
-        with m.Case(0x1):
+        with m.Case(Reg.PRB):
           m.d.sync += reg_prb.eq(self.i_data)
-        with m.Case(0x2):
+        with m.Case(Reg.DDRA):
           m.d.sync += reg_ddra.eq(self.i_data)
-        with m.Case(0x3):
+        with m.Case(Reg.DDRB):
           m.d.sync += reg_ddrb.eq(self.i_data)
         with m.Case(Reg.TA_LO):
           m.d.sync += reg_ta_lo.eq(self.i_data)
@@ -161,6 +161,17 @@ class Cia(Elaboratable):
     # bus reads
     with m.If(self.clk_1mhz_ph_en & self.i_cs & ~self.i_we):
       with m.Switch(self.i_addr):
+        with m.Case(Reg.PRA):
+          for idx in range(8):
+            m.d.comb += self.o_data[idx].eq(Mux(reg_ddra[idx], reg_pra[idx] & self.i_pa[idx], self.i_pa[idx]))
+        with m.Case(Reg.PRB):
+          for idx in range(8):
+            m.d.comb += self.o_data[idx].eq(Mux(reg_ddrb[idx], reg_prb[idx] & self.i_pb[idx], self.i_pb[idx]))
+        with m.Case(Reg.DDRA):
+          m.d.comb += self.o_data.eq(reg_ddra)
+        with m.Case(Reg.DDRB):
+          m.d.comb += self.o_data.eq(reg_ddrb)
+
         with m.Case(Reg.TA_LO):
           m.d.comb += self.o_data.eq(timer_a_cntr[0:8])
         with m.Case(Reg.TA_HI):
@@ -192,27 +203,21 @@ class Cia(Elaboratable):
       with m.If(timer_a_reload):
         m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, reg_ta_hi))
 
+    # Timer B
+    timer_b_zero = Signal()
+    timer_b_reload = Signal()
+    m.d.comb += [timer_b_zero.eq(timer_b_cntr == 0), timer_b_reload.eq(timer_b_force_load | (crb_start & ~crb_runmode & timer_b_zero))]
+    with m.If(self.clk_1mhz_ph_en):
+      with m.If(crb_start):
+        with m.If(timer_b_zero):
+          m.d.sync += icr_status_tb.eq(1) # XXX: Should be moved down to have highest priority (priority over bus read at least)
+          with m.If(crb_runmode): # ONE-SHOT
+            m.d.sync += crb_start.eq(0)
+        m.d.sync += timer_b_cntr.eq(timer_b_cntr - 1)
+      with m.If(timer_b_reload):
+        m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, reg_tb_hi))
 
-
-
-#
-# Old cruft to be removed
-#
-
-
-
-    with m.If(self.clk_1mhz_ph_en & self.i_cs & self.i_we):
-      with m.Switch(self.i_addr):
-        with m.Case(0x0):
-          m.d.sync += self.o_pa.eq(self.i_data)
-
-    m.d.comb += self.o_data.eq(0)
-    with m.Switch(self.i_addr):
-      with m.Case(0x0):
-        m.d.comb += self.o_data.eq(self.i_pa)
-      with m.Case(0x1):
-        m.d.comb += self.o_data.eq(self.i_pb)
-
+    m.d.comb += [self.o_pa.eq(reg_pra), self.o_pb.eq(reg_prb)]
 
     return m
 
