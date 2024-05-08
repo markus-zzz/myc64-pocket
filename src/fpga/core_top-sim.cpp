@@ -45,6 +45,7 @@
 static unsigned trace_begin_frame = 0;
 static std::string iec_trace_path;
 static unsigned iec_trace_begin_frame = 0;
+static FILE *iec_trace_fp = nullptr;
 static std::string prg_path;
 static std::string g64_path;
 static bool dump_video = false;
@@ -294,9 +295,10 @@ struct VICIIFrameDumper {
         m_FrameIdx++;
       }
 
-      if (m_FrameIdx > 150 && dut->debug_1mhz_ph1_en) {
-        fprintf(stderr, "%d,%d,%d\n", dut->debug_iec_atn, dut->debug_iec_clock,
-                dut->debug_iec_data);
+      if (!iec_trace_path.empty() && m_FrameIdx >= iec_trace_begin_frame &&
+          dut->debug_1mhz_ph1_en) {
+        fprintf(iec_trace_fp, "%d,%d,%d\n", dut->debug_iec_atn,
+                dut->debug_iec_clock, dut->debug_iec_data);
       }
     }
   }
@@ -472,6 +474,11 @@ int main(int argc, char *argv[]) {
                               std::istreambuf_iterator<char>());
     g64_slot = std::move(data);
     dataslots[1] = std::make_pair(g64_slot.data(), g64_slot.size());
+  }
+
+  if (!iec_trace_path.empty()) {
+    iec_trace_fp = fopen(iec_trace_path.c_str(), "w");
+    fprintf(iec_trace_fp, "atn,clk,dat\n");
   }
 
   VICIIFrameDumper myVICIIFrameDumper;
