@@ -45,6 +45,7 @@
 static unsigned trace_begin_frame = 0;
 static std::string iec_trace_path;
 static unsigned iec_trace_begin_frame = 0;
+static FILE *iec_trace_fp = nullptr;
 static std::string prg_path;
 static std::string g64_path;
 static bool dump_video = false;
@@ -53,7 +54,12 @@ static unsigned exit_frame = 0;
 
 static std::unique_ptr<Vcore_top> dut;
 
-std::map<uint16_t, std::pair<const uint8_t *, uint32_t>> dataslots;
+std::map<uint16_t, std::pair<const uint8_t *, uint16_t>> dataslots;
+std::vector<uint16_t> updated_dataslots;
+std::vector<uint16_t>::iterator updated_dataslots_iter;
+
+std::vector<std::pair<unsigned, uint16_t>> key_cmds;
+std::vector<std::pair<unsigned, uint16_t>>::iterator key_cmds_iter;
 
 class ClockManager {
   using ClockCB = std::function<void(void)>;
@@ -206,84 +212,42 @@ struct VICIIFrameDumper {
           printf("%s\n", buf);
         }
 
-        if (!prg_path.empty()) {
-          switch (m_FrameIdx) {
-          default:
-            dut->cont1_key = 0;
-            dut->cont3_joy = 0;
-            break;
-          case 125:
-            dut->cont1_key = (1UL << 15); // right-of-analogue
-            break;
-          case 150:
-            dut->cont3_joy = 0x15; // R
-            break;
-          case 151:
-            dut->cont3_joy = 0x18; // U
-            break;
-          case 152:
-            dut->cont3_joy = 0x11; // N
-            break;
-          case 153:
-            dut->cont3_joy = 0x28; // <RETURN>
-            break;
-          }
-        }
-
-        if (!g64_path.empty()) {
-          dut->cont3_key = 0;
-          dut->cont3_joy = 0;
-          switch (m_FrameIdx) {
-          default:
-            break;
-          case 150:
-            dut->cont3_joy = 0x0f; // L
-            break;
-          case 151:
-            dut->cont3_joy = 0x12; // O
-            break;
-          case 152:
-            dut->cont3_joy = 0x04; // A
-            break;
-          case 153:
-            dut->cont3_joy = 0x07; // D
-            break;
-          case 154:
-            dut->cont3_key = 0x0200;
-            dut->cont3_joy = 0x1f; // "
-            break;
-          case 155:
-            dut->cont3_key = 0x0200;
-            dut->cont3_joy = 0x21; // $
-            break;
-          case 156:
-            dut->cont3_key = 0x0200;
-            dut->cont3_joy = 0x1f; // "
-            break;
-          case 157:
-            dut->cont3_joy = 0x36; // ,
-            break;
-          case 158:
-            dut->cont3_joy = 0x25; // 8
-            break;
-          case 159:
-            dut->cont3_joy = 0x28; // <RETURN>
-            break;
-          case 350:
-            dut->cont3_joy = 0x0f; // L
-            break;
-          case 351:
-            dut->cont3_joy = 0x0c; // I
-            break;
-          case 352:
-            dut->cont3_joy = 0x16; // S
-            break;
-          case 353:
-            dut->cont3_joy = 0x17; // T
-            break;
-          case 354:
-            dut->cont3_joy = 0x28; // <RETURN>
-            break;
+        // Handle key injection
+        enum class KeyState { Idle, Press, Release };
+        static KeyState key_state;
+        if (key_cmds_iter != key_cmds.end()) {
+          auto key_cmd = *key_cmds_iter;
+          if (key_cmd.first) {
+            if (m_FrameIdx >= key_cmd.first) {
+              key_cmds_iter++;
+              key_state = KeyState::Idle;
+            }
+          } else {
+            switch (key_state) {
+            case KeyState::Idle:
+              if (key_cmd.second >= 0x100) { // Modifier key
+                dut->cont3_key = key_cmd.second;
+                key_cmd = *(++key_cmds_iter);
+              }
+              dut->cont3_joy = key_cmd.second;
+              key_cmds_wait = m_FrameIdx + 2;
+              key_state = KeyState::Press;
+              break;
+            case KeyState::Press:
+              if (m_FrameIdx >= key_cmds_wait) {
+                key_cmds_wait = m_FrameIdx + 2;
+                key_state = KeyState::Release;
+              }
+              break;
+            case KeyState::Release:
+              dut->cont3_joy = 0;
+              dut->cont3_key = 0;
+              if (m_FrameIdx >= key_cmds_wait) {
+                key_cmds_iter++;
+                key_state = KeyState::Idle;
+              }
+              break;
+            }
           }
         }
 
@@ -294,9 +258,10 @@ struct VICIIFrameDumper {
         m_FrameIdx++;
       }
 
-      if (m_FrameIdx > 150 && dut->debug_1mhz_ph1_en) {
-        fprintf(stderr, "%d,%d,%d\n", dut->debug_iec_atn, dut->debug_iec_clock,
-                dut->debug_iec_data);
+      if (!iec_trace_path.empty() && m_FrameIdx >= iec_trace_begin_frame &&
+          dut->debug_1mhz_ph1_en) {
+        fprintf(iec_trace_fp, "%d,%d,%d\n", dut->debug_iec_atn,
+                dut->debug_iec_clock, dut->debug_iec_data);
       }
     }
   }
@@ -339,11 +304,34 @@ private:
       bridge_state = 100;
       break;
     }
+    case 200: // Data slot update
+      dut->bridge_addr = 0xf8000020;
+      dut->bridge_wr = 1;
+      dut->bridge_wr_data = *updated_dataslots_iter++; // slot id
+      bridge_state = 201;
+      break;
+    case 201: // Data slot update
+      dut->bridge_addr = 0xf8000000;
+      dut->bridge_wr = 1;
+      dut->bridge_wr_data = 0x434d008a;
+      bridge_state = 202;
+      break;
+    case 202: // Data slot update
+      if (updated_dataslots_iter != updated_dataslots.end()) {
+        bridge_state = 200;
+      } else {
+        bridge_state = 2;
+      }
+      break;
     case 1: // Write status OK
       dut->bridge_addr = 0xf8001000;
       dut->bridge_wr = 1;
       dut->bridge_wr_data = 0x6f6b1234;
-      bridge_state = 2;
+      if (updated_dataslots_iter != updated_dataslots.end()) {
+        bridge_state = 200;
+      } else {
+        bridge_state = 2;
+      }
       break;
     case 2: // Wait for data-slot-read command
       dut->bridge_addr = 0xf8001000;
@@ -404,6 +392,7 @@ private:
   const unsigned c_Yres = 312;
   GdkPixbuf *m_FramePixBuf;
   unsigned m_FrameIdx = 0;
+  unsigned key_cmds_wait = 0;
   unsigned m_HCntr = 0;
   unsigned m_VCntr = 0;
 
@@ -422,6 +411,7 @@ double sc_time_stamp() { return CM.CurrTimePS(); }
 
 int main(int argc, char *argv[]) {
   std::string trace_path;
+  std::string keys_str;
   std::vector<std::string> trace_modules;
   CLI::App app{"Verilator based MyC64-pocket simulator"};
   app.add_flag("--dump-video", dump_video, "Dump video output as .png");
@@ -440,6 +430,9 @@ int main(int argc, char *argv[]) {
   app.add_option("--iec-trace", iec_trace_path, "IEC trace output to .csv");
   app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
                  "Start IEC trace on given frame");
+  app.add_option("--keys", keys_str,
+                 "Key input string of the form '[150]10 PRINT<LSHIFT>2HELLO "
+                 "WORLD<LSHIFT>2<RET>20 GOTO 10<RET>RUN<RET>'");
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables
@@ -447,6 +440,40 @@ int main(int argc, char *argv[]) {
   Verilated::traceEverOn(!trace_path.empty());
 
   dut = std::make_unique<Vcore_top>();
+
+  if (!keys_str.empty()) {
+    std::map<std::string, uint16_t> key_map;
+#define DEF_KEY(a, b) key_map[std::string(a)] = b;
+#include "keys.def"
+#undef DEF_KEY
+    std::string &keys = keys_str;
+
+    std::string::size_type p1 = 0;
+    while (p1 < keys.size()) {
+      if (keys[p1] == '[') {
+        auto p2 = keys.find("]", p1);
+        if (p2 == std::string::npos)
+          return -1;
+        auto frame = keys.substr(p1 + 1, p2 - p1 - 1);
+        key_cmds.push_back(std::make_pair(std::stoi(frame), 0));
+        p1 = p2 + 1;
+      } else if (keys[p1] == '<') {
+        auto p2 = keys.find(">", p1);
+        if (p2 == std::string::npos)
+          return -1;
+        auto longkey = keys.substr(p1, p2 - p1 + 1);
+        assert(key_map.count(longkey) > 0);
+        key_cmds.push_back(std::make_pair(0, key_map[longkey]));
+        p1 = p2 + 1;
+      } else {
+        auto key = keys.substr(p1, 1);
+        assert(key_map.count(key) > 0);
+        key_cmds.push_back(std::make_pair(0, key_map[key]));
+        p1++;
+      }
+    }
+  }
+  key_cmds_iter = key_cmds.begin();
 
   dataslots[200] = std::make_pair(basic_bin, basic_bin_len);
   dataslots[201] = std::make_pair(characters_bin, characters_bin_len);
@@ -462,6 +489,7 @@ int main(int argc, char *argv[]) {
                               std::istreambuf_iterator<char>());
     prg_slot = std::move(data);
     dataslots[0] = std::make_pair(prg_slot.data(), prg_slot.size());
+    updated_dataslots.push_back(0);
   }
 
   // Load .g64 into slot
@@ -472,6 +500,14 @@ int main(int argc, char *argv[]) {
                               std::istreambuf_iterator<char>());
     g64_slot = std::move(data);
     dataslots[1] = std::make_pair(g64_slot.data(), g64_slot.size());
+    updated_dataslots.push_back(1);
+  }
+
+  updated_dataslots_iter = updated_dataslots.begin();
+
+  if (!iec_trace_path.empty()) {
+    iec_trace_fp = fopen(iec_trace_path.c_str(), "w");
+    fprintf(iec_trace_fp, "atn,clk,dat\n");
   }
 
   VICIIFrameDumper myVICIIFrameDumper;

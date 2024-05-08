@@ -99,3 +99,7 @@ $ x64 supermon64.prg
 $ { echo 'atn,clk,dat'; cat iec.csv; } | sigrok-cli -I csv:header=yes:samplerate=1mhz -i - -o iec.sr
 $ pulseview iec.sr
 ```
+
+```
+$ ./core_top-sim --dump-video --keys "[150]LOAD<LSHIFT>2<LSHIFT>4<LSHIFT>2,8<RETURN>[400]LIST<RETURN>[450]LOAD<LSHIFT>2MANIAC<SPACE>MANSION<LSHIFT>2,8<RETURN>[2000]RUN<RETURN>[2700]<SPACE>" --trace dump.fst --trace-begin-frame 7600 --g64 ~/Downloads/mm.g64
+```
