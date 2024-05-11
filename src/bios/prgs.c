@@ -34,7 +34,7 @@ static uint32_t get_ds_length(uint16_t slot_id) {
   return 0;
 }
 
-static void load_prg(uint16_t slot_id) {
+void load_prg(uint16_t slot_id) {
   volatile uint8_t *p = (volatile uint8_t *)0x70000000;
   volatile uint8_t *RAM = (volatile uint8_t *)0x50000000;
   uint16_t slot_length = get_ds_length(slot_id);

@@ -45,6 +45,8 @@ void misc_draw();
 
 void keyboard_ext_handle();
 
+void load_prg(uint16_t slot_id);
+
 static const struct osd_tab {
   const char *name;
   void (*init)(void);
@@ -191,6 +193,9 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   if (KEYB_POSEDGE(face_select)) {
     osd_on = !osd_on;
     *OSD_CTRL = osd_on;
+  }
+  if (KEYB_POSEDGE(face_start)) {
+    load_prg(0);
   }
 
   if (osd_on) {
