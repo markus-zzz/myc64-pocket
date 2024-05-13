@@ -21,6 +21,7 @@
 #include "bios.h"
 
 #define PRG_SLOT_ID 0
+#define PRG_INJECT_ID 2
 
 static uint32_t get_ds_length(uint16_t slot_id) {
   volatile uint32_t *p = BRIDGE_DS_TABLE;
@@ -101,6 +102,16 @@ static int scroll_dir;
 static uint32_t ticks_next_update;
 static char prg_path[64];
 
+static enum {
+  IS_IDLE,
+  IS_WAIT_BOOT,
+  IS_KEY_R,
+  IS_KEY_U,
+  IS_KEY_N,
+  IS_KEY_RET
+} inject_state;
+static uint32_t inject_wait;
+
 static unsigned strlen(const char *p) {
   unsigned len = 0;
   while (*p++ != '\0')
@@ -113,9 +124,56 @@ void prgs_init() {
   scroll_dir = 1;
   ticks_next_update = 0;
   prg_path[0] = '\0';
+  inject_state = IS_IDLE;
 }
 
 void prgs_irq() {
+  switch (inject_state) {
+  case IS_IDLE:
+    c64_isr_keyb_mask = 0;
+    if (updated_slots & (1 << PRG_INJECT_ID)) {
+      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0); // Assert reset for MyC64
+      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
+      inject_wait = timer_ticks + 250;
+      inject_state = IS_WAIT_BOOT;
+    }
+    break;
+  case IS_WAIT_BOOT:
+    if (timer_ticks >= inject_wait) {
+      load_prg(PRG_INJECT_ID);
+      inject_wait = timer_ticks + 40;
+      inject_state = IS_KEY_R;
+    }
+    break;
+  case IS_KEY_R:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x21); // R
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_U;
+    }
+    break;
+  case IS_KEY_U:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x36); // U
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_N;
+    }
+    break;
+  case IS_KEY_N:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x47); // N
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_RET;
+    }
+    break;
+  case IS_KEY_RET:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x01); // <RET>
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_IDLE;
+    }
+    break;
+  }
   if (updated_slots & (1 << PRG_SLOT_ID)) {
     while ((*TARGET_0 >> 16) != 0x6F6B)
       ;

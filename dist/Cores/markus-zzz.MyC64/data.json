@@ -21,6 +21,15 @@
         "extensions": ["g64"]
     },
     {
+        "name": "Inject PRG",
+        "id": "2",
+        "required": false,
+        "deferload": true,
+        "parameters": 9,
+        "filename": "",
+        "extensions": ["prg"]
+    },
+    {
         "name": "Basic ROM",
         "id": "200",
         "required": true,

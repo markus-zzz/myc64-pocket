@@ -62,6 +62,7 @@ uint32_t cont1_key_p = 0;
 uint32_t cont1_key = 0;
 
 uint64_t c64_keyb_mask = 0;
+uint64_t c64_isr_keyb_mask = 0;
 
 uint8_t updated_slots;
 
@@ -212,6 +213,8 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   if (1) { // (*CONT3_KEY >> 28) == 0x4) { // Docked keyboard
     keyboard_ext_handle();
   }
+
+  c64_keyb_mask |= c64_isr_keyb_mask;
 
   // Epilogue
   *KEYB_MASK_0 = c64_keyb_mask;
