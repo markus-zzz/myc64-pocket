@@ -86,7 +86,7 @@ $ cd OpenCBM
 $ make -f LINUX/Makefile
 ```
 
-Once the `.g64` slot is loaded from the **Core Settings->Load G64 Slot #0**
+Once the `.g64` slot is loaded from the **Core Settings->Load G64 Slot**
 file browser normal C64 disk commands can be applied such as
 
 ```
@@ -109,9 +109,8 @@ Normal key press is accomplished with the **face-a** button.
 
 Pressing **trig-l1** and **trig-r1** navigates through the different menu tabs.
 
-Loading `.prg` files is accomplished by first selecting the file in the AP's
-**Core Settings->Load PRG Slot #0** file browser and after that injecting it
-from the **PRGS** menu tab.
+Loading and starting `.prg` files is accomplished by simply selecting the file
+in the AP's **Core Settings->Load & Start PRG** file browser.
 
 Controllers can be mapped to C64 joystick ports in the **MISC** menu tab and
 there you will also find a reset button for the emulator core.
