@@ -30,8 +30,6 @@ void keyboard_virt_handle();
 void keyboard_virt_draw();
 
 void prgs_init();
-void prgs_handle();
-void prgs_draw();
 void prgs_irq();
 
 void g64_init();
@@ -53,7 +51,6 @@ static const struct osd_tab {
 
 } osd_tabs[] = {
     {"KEYBOARD", keyboard_virt_init, keyboard_virt_handle, keyboard_virt_draw},
-    {"PRGS", prgs_init, prgs_handle, prgs_draw},
     {"G64", g64_init, g64_handle, g64_draw},
     {"MISC", misc_init, misc_handle, misc_draw},
 };
@@ -62,6 +59,7 @@ uint32_t cont1_key_p = 0;
 uint32_t cont1_key = 0;
 
 uint64_t c64_keyb_mask = 0;
+uint64_t c64_isr_keyb_mask = 0;
 
 uint8_t updated_slots;
 
@@ -103,6 +101,7 @@ int main(void) {
     if (osd_tabs[i].init)
       osd_tabs[i].init();
   }
+  prgs_init();
 
   // Wait for previous command to finish
   while ((*TARGET_0 >> 16) != 0x6F6B)
@@ -212,6 +211,8 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   if (1) { // (*CONT3_KEY >> 28) == 0x4) { // Docked keyboard
     keyboard_ext_handle();
   }
+
+  c64_keyb_mask |= c64_isr_keyb_mask;
 
   // Epilogue
   *KEYB_MASK_0 = c64_keyb_mask;

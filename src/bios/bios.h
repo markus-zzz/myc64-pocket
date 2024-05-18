@@ -100,6 +100,7 @@ extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 
 extern uint64_t c64_keyb_mask;
+extern uint64_t c64_isr_keyb_mask;
 extern uint8_t updated_slots;
 
 void osd_clear();

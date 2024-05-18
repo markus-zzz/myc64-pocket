@@ -96,75 +96,63 @@ static void load_prg(uint16_t slot_id) {
   }
 }
 
-static int scroll_offset;
-static int scroll_dir;
-static uint32_t ticks_next_update;
-static char prg_path[64];
+static enum {
+  IS_IDLE,
+  IS_WAIT_BOOT,
+  IS_KEY_R,
+  IS_KEY_U,
+  IS_KEY_N,
+  IS_KEY_RET
+} inject_state;
+static uint32_t inject_wait;
 
-static unsigned strlen(const char *p) {
-  unsigned len = 0;
-  while (*p++ != '\0')
-    len++;
-  return len;
-}
-
-void prgs_init() {
-  scroll_offset = 0;
-  scroll_dir = 1;
-  ticks_next_update = 0;
-  prg_path[0] = '\0';
-}
+void prgs_init() { inject_state = IS_IDLE; }
 
 void prgs_irq() {
-  if (updated_slots & (1 << PRG_SLOT_ID)) {
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-    volatile uint8_t *p = (volatile uint8_t *)0x70000000;
-    *TARGET_20 = PRG_SLOT_ID; // slot-id
-    *TARGET_24 = 0x70000000;
-    *TARGET_0 = 0x636D0190; // Get filename of data slot
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-
-    unsigned off = MAX((int)strlen((const char *)p) + 1 - 64, 0);
-    for (unsigned i = 0; i < 64; i++) {
-      prg_path[i] = p[off + i];
+  switch (inject_state) {
+  case IS_IDLE:
+    c64_isr_keyb_mask = 0;
+    if (updated_slots & (1 << PRG_SLOT_ID)) {
+      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0); // Assert reset for MyC64
+      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
+      inject_wait = timer_ticks + 300;
+      inject_state = IS_WAIT_BOOT;
     }
-  }
-}
-
-void prgs_handle() {
-  if (KEYB_POSEDGE(face_a)) {
-    load_prg(PRG_SLOT_ID);
-  }
-}
-
-void prgs_draw() {
-  osd_put_str(2, 20, "INJECT PRG SLOT", 0);
-  unsigned offset = osd_put_str(10, 30, "#0:", 0);
-
-  const char *q = prg_path;
-  const int disp_len = 26;
-  int len = strlen(q);
-  for (int i = 0; i < disp_len; i++) {
-    int idx = scroll_offset + i;
-    osd_put_char(offset, 30, idx < len ? q[idx] : ' ', 1);
-    offset += 8;
-  }
-  if (timer_ticks >= ticks_next_update) {
-    ticks_next_update = timer_ticks + 10;
-    if (scroll_dir > 0) {
-      if (scroll_offset + disp_len < len) {
-        scroll_offset++;
-      } else {
-        scroll_dir = -1;
-      }
-    } else if (scroll_dir < 0) {
-      if (scroll_offset > 0) {
-        scroll_offset--;
-      } else {
-        scroll_dir = 1;
-      }
+    break;
+  case IS_WAIT_BOOT:
+    if (timer_ticks >= inject_wait) {
+      load_prg(PRG_SLOT_ID);
+      inject_wait = timer_ticks + 40;
+      inject_state = IS_KEY_R;
     }
+    break;
+  case IS_KEY_R:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x21); // R
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_U;
+    }
+    break;
+  case IS_KEY_U:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x36); // U
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_N;
+    }
+    break;
+  case IS_KEY_N:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x47); // N
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_KEY_RET;
+    }
+    break;
+  case IS_KEY_RET:
+    c64_isr_keyb_mask = C64_KEYB_MASK_KEY(0x01); // <RET>
+    if (timer_ticks >= inject_wait) {
+      inject_wait = timer_ticks + 20;
+      inject_state = IS_IDLE;
+    }
+    break;
   }
 }

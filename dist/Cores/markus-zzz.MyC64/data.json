@@ -3,7 +3,7 @@
         "magic": "APF_VER_1",
         "data_slots": [
     {
-        "name": "PRG Slot #0",
+        "name": "& Start PRG",
         "id": "0",
         "required": false,
         "deferload": true,
@@ -12,7 +12,7 @@
         "extensions": ["prg"]
     },
     {
-        "name": "G64 Slot #0",
+        "name": "G64 Slot",
         "id": "1",
         "required": false,
         "deferload": true,
