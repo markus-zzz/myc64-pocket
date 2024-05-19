@@ -124,3 +124,5 @@ static inline uint32_t bits_set(uint32_t in, uint32_t pos, uint32_t width,
   in &= ~(mask << pos);
   return in | (val << pos);
 }
+
+void misc_reset_core();

@@ -22,6 +22,18 @@
 
 static volatile int sel_row;
 
+void misc_reset_core() {
+  // Clear any "CBM80" cartridge auto start signature at $8000
+  // XXX: Note that we currently cannot do that during reset since we depend on
+  // the 1MHz phase enable signals during C64 RAM access.
+  volatile uint8_t *C64_RAM = (volatile uint8_t *)0x50000000;
+  for (unsigned i = 0; i < 16; i++) {
+    C64_RAM[0x8000 + i] = 0;
+  }
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0); // Assert reset for MyC64
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
+}
+
 void misc_init() { sel_row = 0; }
 
 void misc_handle() {
@@ -37,8 +49,7 @@ void misc_handle() {
     uint32_t tmp;
     switch (sel_row) {
     case 0:
-      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0); // Assert reset for MyC64
-      *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
+      misc_reset_core();
       break;
     case 1:
       tmp = bits_get(*C64_CTRL, 1, 2);
