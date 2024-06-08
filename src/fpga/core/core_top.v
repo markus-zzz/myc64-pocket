@@ -550,7 +550,11 @@ module core_top (
       .i_iec_data_in(iec_data),
       .o_iec_data_out(iec_c64_data_out),
       .i_iec_clock_in(iec_clock),
-      .o_iec_clock_out(iec_c64_clock_out)
+      .o_iec_clock_out(iec_c64_clock_out),
+      .i_cart_exrom(c64_ctrl[5]),
+      .i_cart_game(c64_ctrl[6]),
+      .o_cart_addr(c64_cart_addr),
+      .i_cart_data(c64_cart_data)
   );
 
   wire [15:0] c1541_bus_addr;
@@ -675,6 +679,22 @@ module core_top (
       .we  (ext_rom_kernal_we)
   );
 
+  wire [20:0] c64_cart_addr;
+  wire [7:0] c64_cart_data;
+  spram #(
+      .aw(17),
+      .dw(8)
+  ) u_c64_cart_rom (
+      .clk (clk),
+      .rst (rst),
+      .ce  (1'b1),
+      .oe  (1'b1),
+      .addr(ext_rom_cart_we ? ext_addr : c64_cart_addr),
+      .do  (c64_cart_data),
+      .di  (ext_data),
+      .we  (ext_rom_cart_we)
+  );
+
   //
   // Memories for My1541
   //
@@ -721,12 +741,13 @@ module core_top (
 
   wire [31:0] osd_mem_addr;
 
-  reg [15:0] ext_addr;
+  reg [31:0] ext_addr;
   reg [7:0] ext_data; // XXX: Rename to cpu_mem_wdata_byte?
   wire ext_ram_we;
   wire ext_rom_basic_we;
   wire ext_rom_char_we;
   wire ext_rom_kernal_we;
+  wire ext_rom_cart_we;
   wire ext_rom_1541_we;
 
   assign ext_ram_we = (cpu_mem_addr[31:16] == 16'h5000) && cpu_mem_valid && (cpu_mem_wstrb != 0);
@@ -734,23 +755,24 @@ module core_top (
   assign ext_rom_char_we = (cpu_mem_addr[31:16] == 16'h5002) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_kernal_we = (cpu_mem_addr[31:16] == 16'h5003) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_1541_we = (cpu_mem_addr[31:16] == 16'h5004) && cpu_mem_valid && (cpu_mem_wstrb != 0);
+  assign ext_rom_cart_we = (cpu_mem_addr[31:24] == 8'h51) && cpu_mem_valid && (cpu_mem_wstrb != 0);
 
   always @* begin
     case (cpu_mem_wstrb)
       4'b0001: begin
-        ext_addr = {cpu_mem_addr[15:2], 2'b00};
+        ext_addr = {cpu_mem_addr[31:2], 2'b00};
         ext_data = cpu_mem_wdata[7:0];
       end
       4'b0010: begin
-        ext_addr = {cpu_mem_addr[15:2], 2'b01};
+        ext_addr = {cpu_mem_addr[31:2], 2'b01};
         ext_data = cpu_mem_wdata[15:8];
       end
       4'b0100: begin
-        ext_addr = {cpu_mem_addr[15:2], 2'b10};
+        ext_addr = {cpu_mem_addr[31:2], 2'b10};
         ext_data = cpu_mem_wdata[23:16];
       end
       4'b1000: begin
-        ext_addr = {cpu_mem_addr[15:2], 2'b11};
+        ext_addr = {cpu_mem_addr[31:2], 2'b11};
         ext_data = cpu_mem_wdata[31:24];
       end
       default: begin
@@ -802,12 +824,12 @@ module core_top (
       osd_ctrl <= cpu_mem_wdata[0];
   end
 
-  reg [4:0] c64_ctrl;
+  reg [6:0] c64_ctrl;
   reg [12:0] c1541_track_len;
   always @(posedge clk) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
-      c64_ctrl <= cpu_mem_wdata[4:0];
+      c64_ctrl <= cpu_mem_wdata[6:0];
     else if (cpu_mem_addr == 32'h30000104 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111) begin
       c1541_track_len <= cpu_mem_wdata[12:0];
       $display("track_len: %d, track_no: %d", c1541_track_len, c1541_track_no);

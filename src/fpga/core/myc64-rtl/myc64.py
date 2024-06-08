@@ -53,11 +53,17 @@ class MyC64(Elaboratable):
     self.i_iec_clock_in = Signal()
     self.o_iec_clock_out = Signal()
 
+    self.i_cart_exrom = Signal()
+    self.i_cart_game = Signal()
+    self.o_cart_addr = Signal(21)
+    self.i_cart_data = Signal(8)
+
     self.ports = [
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
         self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
-        self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out
+        self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
+        self.i_cart_exrom, self.i_cart_game, self.o_cart_addr, self.i_cart_data
     ]
 
   def elaborate(self, platform):
@@ -127,6 +133,9 @@ class MyC64(Elaboratable):
         u_ram_color_wp.en.eq(color_cs & bus_we)
     ]
 
+    cart_bank_de00 = Signal(8)
+    m.d.comb += self.o_cart_addr.eq(Cat(bus_addr[0:13], cart_bank_de00))
+
     # Bank switching - following the table from
     # https://www.c64-wiki.com/wiki/Bank_Switching
     m.d.comb += [
@@ -147,7 +156,11 @@ class MyC64(Elaboratable):
       m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM or cartridge ROM
     with m.Elif((0x8000 <= cpu_addr) & (cpu_addr <= 0x9FFF)):
-      m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+      m.d.comb += ram_cs.eq(1)
+      with m.If((self.i_cart_exrom == 0b0) & (self.i_cart_game == 0b1) & ~cart_bank_de00[7]):
+        m.d.comb += [cpu_di.eq(self.i_cart_data)]
+      with m.Else():
+        m.d.comb += [cpu_di.eq(self.i_ram_main_data)]
     # RAM, BASIC interpretor ROM, cartridge ROM or is unmapped
     with m.Elif((0xA000 <= cpu_addr) & (cpu_addr <= 0xBFFF)):
       with m.If((cpu_po[0:3] == 0b111) | (cpu_po[0:3] == 0b011)):
@@ -171,6 +184,11 @@ class MyC64(Elaboratable):
           m.d.comb += [cpu_di.eq(u_cia1.o_data), cia1_cs.eq(1)]
         with m.Elif((0xDD00 <= cpu_addr) & (cpu_addr <= 0xDDFF)):  # CIA2
           m.d.comb += [cpu_di.eq(u_cia2.o_data), cia2_cs.eq(1)]
+
+        # Handle cartridge bank select register $DE00
+        with m.If((cpu_addr == 0xDE00) & cpu_we):
+          m.d.sync += cart_bank_de00.eq(cpu_do)
+
       with m.Elif((cpu_po[0:3] == 0b011) | (cpu_po[0:3] == 0b010) | (cpu_po[0:3] == 0b001)):
         # CHAR ROM
         m.d.comb += [cpu_di.eq(self.i_rom_char_data), ram_cs.eq(1)]

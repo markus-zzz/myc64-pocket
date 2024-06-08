@@ -20,7 +20,6 @@
 
 #include "bios.h"
 
-#define G64_SLOT_ID 1
 #define G64_NUM_TRACKS 84
 #define G64_TRACK_OFFSET_TABLE 12
 

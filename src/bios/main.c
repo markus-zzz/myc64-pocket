@@ -32,6 +32,9 @@ void keyboard_virt_draw();
 void prgs_init();
 void prgs_irq();
 
+void crts_init();
+void crts_irq();
+
 void g64_init();
 void g64_handle();
 void g64_draw();
@@ -102,6 +105,7 @@ int main(void) {
       osd_tabs[i].init();
   }
   prgs_init();
+  crts_init();
 
   // Wait for previous command to finish
   while ((*TARGET_0 >> 16) != 0x6F6B)
@@ -118,6 +122,7 @@ int main(void) {
   load_rom(203, (volatile uint8_t *)0x50040000, 8192);
   load_rom(204, (volatile uint8_t *)(0x50040000 + 8192), 8192);
 
+  *C64_CTRL = bits_set(*C64_CTRL, 5, 2, 3); // EXROM=1,GAME=1
   *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 2); // Joystick1 = cont2
   *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 1); // Joystick2 = cont1
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
@@ -167,6 +172,7 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   updated_slots = *UPDATED_SLOTS;
 
   prgs_irq();
+  crts_irq();
   g64_irq();
 
   // Prologue

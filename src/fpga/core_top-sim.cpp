@@ -42,19 +42,24 @@
 #include "1540-c000.h"
 #include "1541-e000.h"
 
+#define CRT_SLOT_ID 0
+#define PRG_SLOT_ID 1
+#define G64_SLOT_ID 2
+
 static unsigned trace_begin_frame = 0;
 static std::string iec_trace_path;
 static unsigned iec_trace_begin_frame = 0;
 static FILE *iec_trace_fp = nullptr;
 static std::string prg_path;
 static std::string g64_path;
+static std::string crt_path;
 static bool dump_video = false;
 static bool dump_ram = false;
 static unsigned exit_frame = 0;
 
 static std::unique_ptr<Vcore_top> dut;
 
-std::map<uint16_t, std::pair<const uint8_t *, uint16_t>> dataslots;
+std::map<uint16_t, std::pair<const uint8_t *, uint32_t>> dataslots;
 std::vector<uint16_t> updated_dataslots;
 std::vector<uint16_t>::iterator updated_dataslots_iter;
 
@@ -427,6 +432,8 @@ int main(int argc, char *argv[]) {
       ->check(CLI::ExistingFile);
   app.add_option("--g64", g64_path, ".g64 file to put in slot")
       ->check(CLI::ExistingFile);
+  app.add_option("--crt", crt_path, ".crt file to put in slot")
+      ->check(CLI::ExistingFile);
   app.add_option("--iec-trace", iec_trace_path, "IEC trace output to .csv");
   app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
                  "Start IEC trace on given frame");
@@ -488,8 +495,8 @@ int main(int argc, char *argv[]) {
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
                               std::istreambuf_iterator<char>());
     prg_slot = std::move(data);
-    dataslots[0] = std::make_pair(prg_slot.data(), prg_slot.size());
-    updated_dataslots.push_back(0);
+    dataslots[PRG_SLOT_ID] = std::make_pair(prg_slot.data(), prg_slot.size());
+    updated_dataslots.push_back(PRG_SLOT_ID);
   }
 
   // Load .g64 into slot
@@ -499,8 +506,19 @@ int main(int argc, char *argv[]) {
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
                               std::istreambuf_iterator<char>());
     g64_slot = std::move(data);
-    dataslots[1] = std::make_pair(g64_slot.data(), g64_slot.size());
-    updated_dataslots.push_back(1);
+    dataslots[G64_SLOT_ID] = std::make_pair(g64_slot.data(), g64_slot.size());
+    updated_dataslots.push_back(G64_SLOT_ID);
+  }
+
+  // Load .crt into slot
+  std::vector<uint8_t> crt_slot;
+  if (!crt_path.empty()) {
+    std::ifstream instream(crt_path, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
+                              std::istreambuf_iterator<char>());
+    crt_slot = std::move(data);
+    dataslots[CRT_SLOT_ID] = std::make_pair(crt_slot.data(), crt_slot.size());
+    updated_dataslots.push_back(CRT_SLOT_ID);
   }
 
   updated_dataslots_iter = updated_dataslots.begin();

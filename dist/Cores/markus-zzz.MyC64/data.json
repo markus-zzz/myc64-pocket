@@ -3,8 +3,17 @@
         "magic": "APF_VER_1",
         "data_slots": [
     {
-        "name": "& Start PRG",
+        "name": "& Start CRT",
         "id": "0",
+        "required": false,
+        "deferload": true,
+        "parameters": 9,
+        "filename": "",
+        "extensions": ["crt"]
+    },
+    {
+        "name": "& Start PRG",
+        "id": "1",
         "required": false,
         "deferload": true,
         "parameters": 9,
@@ -13,7 +22,7 @@
     },
     {
         "name": "G64 Slot",
-        "id": "1",
+        "id": "2",
         "required": false,
         "deferload": true,
         "parameters": 9,

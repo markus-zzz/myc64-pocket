@@ -26,7 +26,9 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define CONT1_KEY ((volatile uint32_t *)0x20000000)
+#define CRT_SLOT_ID 0
+#define PRG_SLOT_ID 1
+#define G64_SLOT_ID 2
 
 #define CONT1_KEY ((volatile uint32_t *)0x20000000)
 #define CONT2_KEY ((volatile uint32_t *)0x20000004)
@@ -125,4 +127,4 @@ static inline uint32_t bits_set(uint32_t in, uint32_t pos, uint32_t width,
   return in | (val << pos);
 }
 
-void misc_reset_core();
+void misc_reset_core(uint32_t exrom, uint32_t game);
