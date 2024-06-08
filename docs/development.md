@@ -104,7 +104,10 @@ $ pulseview iec.sr
 $ ./core_top-sim --dump-video --keys "[150]LOAD<LSHIFT>2<LSHIFT>4<LSHIFT>2,8<RETURN>[400]LIST<RETURN>[450]LOAD<LSHIFT>2MANIAC<SPACE>MANSION<LSHIFT>2,8<RETURN>[2000]RUN<RETURN>[2700]<SPACE>" --trace dump.fst --trace-begin-frame 7950 --g64 ~/Downloads/mm.g64
 ```
 
+## Misc
+
 Encode a `.mp4` of simulation output
 ```
 $ ffmpeg -r 60 -pattern_type glob -i 'vicii-*.png' -vcodec libx264 -crf 22 video.mp4
 ```
+

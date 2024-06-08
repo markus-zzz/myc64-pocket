@@ -34,3 +34,5 @@ sed -i "s/DATE_RELEASE/${DATE}/" ${STAGING}/Cores/markus-zzz.MyC64/core.json
 pushd ${STAGING}
 zip -r ../MyC64-Pocket.zip .
 popd
+
+cat src/fpga/output_files/ap_core.fit.summary
