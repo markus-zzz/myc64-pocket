@@ -73,6 +73,8 @@ class VicII(Elaboratable):
     sprite_shift = Array([Signal(24) for _ in range(8)])
     sprite_shift_2msb = Array([Signal(2) for _ in range(8)])
     sprite_shift_toggle = Array([Signal(1) for _ in range(8)])
+    sprite_hdouble_toggle = Array([Signal(1) for _ in range(8)])
+    sprite_wdouble_toggle = Array([Signal(1) for _ in range(8)])
     sprite_out_color = Array([Signal(4) for _ in range(8)])
     sprite_out_valid = Signal(8)
 
@@ -150,9 +152,11 @@ class VicII(Elaboratable):
     r_d010 = rf.addRegRW(addr=0xd010, width=8)
     r_d015 = rf.addRegRW(addr=0xd015, width=8)
     r_d016 = rf.addRegRW(addr=0xd016, width=8)
+    r_d017 = rf.addRegRW(addr=0xd017, width=8)
     r_d01a = rf.addRegRW(addr=0xd01a, width=4)
     r_d01b = rf.addRegRW(addr=0xd01b, width=8)
     r_d01c = rf.addRegRW(addr=0xd01c, width=8)
+    r_d01d = rf.addRegRW(addr=0xd01d, width=8)
     sprites_color = Array([rf.addRegRW(addr=addr, width=4) for addr in range(0xd027, 0xd02f, 1)])
 
     mode_ecm = Signal() # Extended Color Mode
@@ -358,16 +362,18 @@ class VicII(Elaboratable):
     with m.If(self.clk_8mhz_en):
       for idx in range(8):
         with m.If(r_d015[idx] & (Cat(sprites_x_bit_0_7[idx], r_d010[idx]) == x + 5)): # XXX: The +5 part is a hack.
-          m.d.sync += [sprite_shift_on[idx].eq(1), sprite_shift_toggle[idx].eq(0)]
+          m.d.sync += [sprite_shift_on[idx].eq(1), sprite_shift_toggle[idx].eq(0), sprite_wdouble_toggle[idx].eq(0)]
 
     with m.If(self.clk_8mhz_en):
       m.d.sync += pixshift.eq(Cat(Const(0, 1), pixshift[0:7]))
       for idx in range(8):
         with m.If(sprite_shift_on[idx]):
-          m.d.sync += [sprite_shift[idx].eq(Cat(Const(0, 1), sprite_shift[idx][0:23])),
-                       sprite_shift_toggle[idx].eq(~sprite_shift_toggle[idx])]
-          with m.If(~sprite_shift_toggle[idx]):
-            m.d.sync += sprite_shift_2msb[idx].eq(sprite_shift[idx][22:24])
+          m.d.sync += sprite_wdouble_toggle[idx].eq(~sprite_wdouble_toggle[idx])
+          with m.If(~r_d01d.bit_select(idx, 1) | sprite_wdouble_toggle[idx]):
+            m.d.sync += [sprite_shift[idx].eq(Cat(Const(0, 1), sprite_shift[idx][0:23])),
+                         sprite_shift_toggle[idx].eq(~sprite_shift_toggle[idx])]
+            with m.If(~sprite_shift_toggle[idx]):
+              m.d.sync += sprite_shift_2msb[idx].eq(sprite_shift[idx][22:24])
 
     m.d.comb += [vic_owns_ph1.eq(0)]
 
@@ -388,7 +394,7 @@ class VicII(Elaboratable):
             # and Y-coordinate matches.
             for idx in range(8):
               with m.If(r_d015[idx] & (sprites_y[idx] == raster)):
-                m.d.sync += [sprite_dma_on[idx].eq(1), mc[idx].eq(0)]
+                m.d.sync += [sprite_dma_on[idx].eq(1), mc[idx].eq(0), sprite_hdouble_toggle[idx].eq(0)]
             m.next = 'p-access'
 
       with m.State('p-access'):
@@ -421,7 +427,12 @@ class VicII(Elaboratable):
           m.d.comb += [self.o_addr.eq(Cat(mc[sprite_idx], sprite_ptr))]
         with m.If(self.clk_1mhz_ph2_en):
           with m.If(sprite_dma_on.bit_select(sprite_idx, 1)):
-            m.d.sync += [sprite_shift[sprite_idx][0:8].eq(self.i_data[0:8]), mc[sprite_idx].eq(mc[sprite_idx] + 1)]
+            m.d.sync += sprite_hdouble_toggle[sprite_idx].eq(~sprite_hdouble_toggle[sprite_idx])
+            m.d.sync += [sprite_shift[sprite_idx][0:8].eq(self.i_data[0:8])]
+            with m.If(r_d017.bit_select(sprite_idx, 1) & ~sprite_hdouble_toggle[sprite_idx]):
+              m.d.sync += mc[sprite_idx].eq(mc[sprite_idx] - 2)
+            with m.Else():
+              m.d.sync += mc[sprite_idx].eq(mc[sprite_idx] + 1)
             with m.If(mc[sprite_idx] == 3 * 21 - 1):
               m.d.sync += [sprite_dma_on.bit_select(sprite_idx, 1).eq(0)]
           with m.If(sprite_idx == 7):
