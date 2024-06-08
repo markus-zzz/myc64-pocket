@@ -64,9 +64,10 @@ class VicII(Elaboratable):
     cycle = Signal(6)
 
     bad_line_cond = Signal()
-    display_window_x = Signal()
-    display_window_y = Signal()
     display_not_idle_state = Signal()
+
+    main_border_ff = Signal()
+    vertical_border_ff = Signal()
 
     # Sprite registers (internal)
     mc = Array([Signal(6) for _ in range(8)])
@@ -166,12 +167,34 @@ class VicII(Elaboratable):
     m.d.comb += [mode_ecm.eq(r_d011[6]), mode_bmm.eq(r_d011[5]), mode_mcm.eq(r_d016[4])]
 
     mode_screen_on = r_d011[4] # Screen on, normal content
+    mode_25_rows = r_d011[3] # 25 rows mode
     mode_40_columns = r_d016[3] # 40 coulmns mode
 
-    with m.If(x == Mux(mode_40_columns, 0x14, 0x14 + 8)):
-      m.d.sync += [display_window_x.eq(1)]
-    with m.Elif(x == Mux(mode_40_columns, 0x14 + 8 * 40, 0x14 + 8 + 8 * 38)):
-      m.d.sync += [display_window_x.eq(0)]
+    # From section '3.9. The border unit'
+    left_comp_value = Mux(mode_40_columns, 0x14, 0x14 + 8)
+    right_comp_value = Mux(mode_40_columns, 0x14 + 8 * 40, 0x14 + 8 + 8 * 38)
+    top_comp_value = Mux(mode_25_rows, 0x32, 0x36)
+    bot_comp_value = Mux(mode_25_rows, 0xfa, 0xf6)
+
+    # Rule 1
+    with m.If(x == right_comp_value):
+      m.d.sync += main_border_ff.eq(1)
+    # Rule 2
+    with m.If((y == bot_comp_value) & (cycle == 63)):
+      m.d.sync += vertical_border_ff.eq(1)
+    # Rule 3
+    with m.If((y == top_comp_value) & (cycle == 63) & r_d011[4]):
+      m.d.sync += vertical_border_ff.eq(0)
+    # Rule 4
+    with m.If((x == left_comp_value) & (y == bot_comp_value)):
+      m.d.sync += vertical_border_ff.eq(1)
+    # Rule 5
+    with m.If((x == left_comp_value) & (y == top_comp_value) & r_d011[4]):
+      m.d.sync += vertical_border_ff.eq(0)
+    # Rule 6
+    with m.If((x == left_comp_value) & ~vertical_border_ff):
+      m.d.sync += main_border_ff.eq(0)
+
 
     # Sprite to sprite collisions
     sprite2sprite_col = Signal(8)
@@ -213,11 +236,6 @@ class VicII(Elaboratable):
           (cycle == 0) & (raster == raster_irq)
       ):  # XXX: should we check the corresponding interrupt enable bit here or is it just for the final IRQ gen?
         m.d.sync += irq[0].eq(1)
-
-    with m.If(r_d011[3]):
-      m.d.comb += [display_window_y.eq((raster >= 0x33) & (raster <= 0xfa))]
-    with m.Else():
-      m.d.comb += [display_window_y.eq((raster >= 0x37) & (raster <= 0xf6))]
 
     m.d.comb += [bad_line_cond.eq((raster >= 0x30) & (raster <= 0xf7) & (y[0:3] == r_d011[0:3]))]
 
@@ -328,9 +346,9 @@ class VicII(Elaboratable):
           with m.Case(0b11):
             m.d.comb += graph_color.eq(r_d024)
 
-
-    m.d.comb += [self.o_color.eq(r_d020)]  # Border color.
-    with m.If(mode_screen_on & display_window_x & display_window_y):
+    with m.If(main_border_ff):
+      m.d.comb += [self.o_color.eq(r_d020)]  # Border color.
+    with m.Else():
       m.d.comb += self.o_color.eq(graph_color)
       with m.If(sprite_final_out_valid):
         with m.If(~sprite_final_out_priority | ~graph_color_is_fg):
