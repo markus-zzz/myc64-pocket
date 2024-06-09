@@ -1,6 +1,20 @@
 # Development
 
+## Setup
+
+For a Ubuntu like environment the following packages are needed
+```
+$ sudo apt-get install clang lld llvm python3 pip
+$ pip install amaranth
+$ pip install amaranth-yosys
+```
+
 ## Build instructions
+
+The easiest way to get started is to run the entire flow with the release builder script
+```
+$ PATH=$PATH:/home/markus/intelFPGA_lite/22.1std/quartus/bin/ ./utils/build-release.sh "X.X.X"
+```
 
 Build the BIOS for the housekeeping CPU
 ```
