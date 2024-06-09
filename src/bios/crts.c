@@ -87,13 +87,14 @@ static void ds_read(uint16_t slot_id, uint32_t slot_offset, uint32_t length,
 }
 
 static void load_crt(uint16_t slot_id) {
-  volatile uint8_t *ROM = (volatile uint8_t *)0x51000000;
+  uint8_t *ROM_LO = (uint8_t *)0x51000000;
+  uint8_t *ROM_HI = (uint8_t *)0x52000000;
   uint32_t slot_length = get_ds_length(slot_id);
   if (!slot_length)
     return;
 
   uint16_t cart_hw_type = swap16(get_ds_uint16(slot_id, 0x16));
-  if (cart_hw_type != 19) // Currently only Magic Desk cartridges supported
+  if (cart_hw_type != 19 && cart_hw_type != 32) // Only Magic Desk and EasyFlash cartridges supported
     return;
 
   uint32_t chip_packet_base = 0x40;
@@ -111,15 +112,21 @@ static void load_crt(uint16_t slot_id) {
     uint16_t image_size =
         swap16(get_ds_uint16(slot_id, chip_packet_base + 0xe));
 
-    (void)load_address;
-
+    uint8_t *ROM = (load_address == 0x8000) ? ROM_LO : ROM_HI;
     ds_read(slot_id, chip_packet_base + 0x10, image_size,
-            (uint8_t *)&ROM[bank_number * image_size]);
+            &ROM[bank_number * image_size]);
 
     chip_packet_base += chip_packet_length;
   }
 
-  misc_reset_core(/*EXROM=*/0, /*GAME=*/1); // Reset C64 and 1541
+  switch (cart_hw_type) {
+    case 19: // Magic Desk
+      misc_reset_core(/*EXROM=*/0, /*GAME=*/1); // Reset C64 and 1541
+      break;
+    case 32: // Magic Desk (set Ultimax mode)
+      misc_reset_core(/*EXROM=*/1, /*GAME=*/0); // Reset C64 and 1541
+      break;
+  }
 }
 
 void crts_init() {}
