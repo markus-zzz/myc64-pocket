@@ -743,7 +743,6 @@ set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65_Pack.vhd
 set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65_MCode.vhd
 set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65_ALU.vhd
 set_global_assignment -name VHDL_FILE core/myc64-rtl/T65/T65.vhd
-set_global_assignment -name VERILOG_FILE core/myc64-rtl/sid.v
 set_global_assignment -name VERILOG_FILE core/myc64-rtl/myc64.v
 set_global_assignment -name VERILOG_FILE core/my1541-rtl/my1541.v
 set_global_assignment -name VERILOG_FILE core/sprom.v

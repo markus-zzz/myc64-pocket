@@ -224,7 +224,7 @@ class MyC64(Elaboratable):
         u_vic.i_reg_data.eq(bus_do),
         u_vic.i_reg_we.eq(bus_we),
         # SID
-        u_sid.i_clk_1mhz_ph1_en.eq(clk_1mhz_ph2_en),
+        u_sid.clk_1mhz_ph1_en.eq(clk_1mhz_ph2_en),
         u_sid.i_cs.eq(sid_cs),
         u_sid.i_addr.eq(bus_addr),
         u_sid.i_data.eq(bus_do),
