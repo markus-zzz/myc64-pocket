@@ -119,7 +119,7 @@ static void load_crt(uint16_t slot_id) {
     chip_packet_base += chip_packet_length;
   }
 
-  misc_reset_core(/*EXROM=*/0, /*GAME=*/1); // Reset C64 and 1541 with EXROM=0 and GAME=1
+  misc_reset_core(/*EXROM=*/0, /*GAME=*/1); // Reset C64 and 1541
 }
 
 void crts_init() {}

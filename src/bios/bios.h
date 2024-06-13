@@ -98,6 +98,9 @@
 
 extern volatile uint32_t timer_ticks;
 
+extern uint8_t joystick1;
+extern uint8_t joystick2;
+
 extern uint32_t cont1_key_p;
 extern uint32_t cont1_key;
 

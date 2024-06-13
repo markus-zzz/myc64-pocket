@@ -196,6 +196,18 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   if (KEYB_POSEDGE(face_select)) {
     osd_on = !osd_on;
     *OSD_CTRL = osd_on;
+    if (osd_on) {
+      // Read joystick mapping when entering OSD
+      joystick1 = bits_get(*C64_CTRL, 1, 2);
+      joystick2 = bits_get(*C64_CTRL, 3, 2);
+      // Disconnect both joysticks while in OSD
+      *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 0);
+      *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 0);
+    } else {
+      // Restore joystick mapping when leaving OSD
+      *C64_CTRL = bits_set(*C64_CTRL, 1, 2, joystick1);
+      *C64_CTRL = bits_set(*C64_CTRL, 3, 2, joystick2);
+    }
   }
 
   if (osd_on) {

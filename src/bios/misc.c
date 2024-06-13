@@ -22,6 +22,9 @@
 
 static volatile int sel_row;
 
+uint8_t joystick1;
+uint8_t joystick2;
+
 void misc_reset_core(uint32_t exrom, uint32_t game) {
   // Clear any "CBM80" cartridge auto start signature at $8000
   // XXX: Note that we currently cannot do that during reset since we depend on
@@ -30,10 +33,10 @@ void misc_reset_core(uint32_t exrom, uint32_t game) {
   for (unsigned i = 0; i < 16; i++) {
     C64_RAM[0x8000 + i] = 0;
   }
-  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0); // Assert reset for MyC64
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0);     // Assert reset for MyC64
   *C64_CTRL = bits_set(*C64_CTRL, 5, 1, exrom); // EXROM
-  *C64_CTRL = bits_set(*C64_CTRL, 6, 1, game); // GAME
-  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
+  *C64_CTRL = bits_set(*C64_CTRL, 6, 1, game);  // GAME
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1);     // Release reset for MyC64
 }
 
 void misc_init() { sel_row = 0; }
@@ -48,20 +51,15 @@ void misc_handle() {
   }
 
   if (KEYB_POSEDGE(face_a)) {
-    uint32_t tmp;
     switch (sel_row) {
     case 0:
       misc_reset_core(/*EXROM=*/1, /*GAME=*/1);
       break;
     case 1:
-      tmp = bits_get(*C64_CTRL, 1, 2);
-      tmp = tmp < 2 ? tmp + 1 : 0;
-      *C64_CTRL = bits_set(*C64_CTRL, 1, 2, tmp);
+      joystick1 = joystick1 < 2 ? joystick1 + 1 : 0;
       break;
     case 2:
-      tmp = bits_get(*C64_CTRL, 3, 2);
-      tmp = tmp < 2 ? tmp + 1 : 0;
-      *C64_CTRL = bits_set(*C64_CTRL, 3, 2, tmp);
+      joystick2 = joystick2 < 2 ? joystick2 + 1 : 0;
       break;
     }
   }
@@ -80,11 +78,9 @@ void misc_draw() {
   osd_put_str(x, y, "INPUTS", 0);
   x += 8;
   y += 10;
-  uint32_t tmp = bits_get(*C64_CTRL, 1, 2);
   offset = osd_put_str(x, y, "JOYSTICK1: ", 0);
-  osd_put_str(offset, y, inputs[tmp], sel_row_tmp == 1);
+  osd_put_str(offset, y, inputs[joystick1], sel_row_tmp == 1);
   y += 10;
-  tmp = bits_get(*C64_CTRL, 3, 2);
   offset = osd_put_str(x, y, "JOYSTICK2: ", 0);
-  osd_put_str(offset, y, inputs[tmp], sel_row_tmp == 2);
+  osd_put_str(offset, y, inputs[joystick2], sel_row_tmp == 2);
 }
