@@ -35,6 +35,10 @@ class WaveformGenerator(Elaboratable):
     self.i_sawtooth_en = Signal()
     self.i_pulse_en = Signal()
     self.i_noise_en = Signal()
+    self.i_hard_sync = Signal()
+    self.i_ring_mod = Signal()
+    self.i_prev_osc_msb = Signal()
+    self.o_osc_msb = Signal()
     self.o_wave = Signal(12)
 
   def elaborate(self, platform):
@@ -48,24 +52,33 @@ class WaveformGenerator(Elaboratable):
     lfsr = Signal(23, reset=0b1)
     feedback = Signal()
     lfsr_clk_d = Signal()
+    prev_osc_msb_d = Signal()
 
     m.d.comb += feedback.eq(lfsr[15] ^ lfsr[17] ^ lfsr[18] ^ lfsr[22])
 
     lfsr_clk = phase_accum[19]
 
     with m.If(self.clk_1mhz_ph1_en):
-      m.d.sync += phase_accum.eq(phase_accum + self.i_frequency)
+      m.d.sync += prev_osc_msb_d.eq(self.i_prev_osc_msb)
+      with m.If(self.i_hard_sync & ~prev_osc_msb_d & self.i_prev_osc_msb):
+        m.d.sync += phase_accum.eq(0)
+      with m.Else():
+        m.d.sync += phase_accum.eq(phase_accum + self.i_frequency)
+
       m.d.sync += lfsr_clk_d.eq(lfsr_clk)
       with m.If(~lfsr_clk_d & lfsr_clk):
         m.d.sync += lfsr.eq(Cat(feedback, lfsr[0:22]))
 
     m.d.comb += wave_sawtooth.eq(phase_accum[12:24])
-    m.d.comb += wave_triangle.eq(Cat(C(0, 1), phase_accum[23].replicate(11) ^ phase_accum[12:23]))
+    m.d.comb += wave_triangle.eq(
+        Cat(C(0, 1),
+            Mux(self.i_ring_mod, self.i_prev_osc_msb, phase_accum[23]).replicate(11) ^ phase_accum[12:23]))
     m.d.comb += wave_pulse.eq(Mux(phase_accum[12:24] <= self.i_duty_cycle, C(0xfff, 12), C(0, 12)))
     m.d.comb += wave_noise.eq(lfsr[11:23])
 
     m.d.comb += self.o_wave.eq(~(~Mux(self.i_sawtooth_en, wave_sawtooth, 0) & ~Mux(self.i_triangle_en, wave_triangle, 0)
                                  & ~Mux(self.i_pulse_en, wave_pulse, 0) & ~Mux(self.i_noise_en, wave_noise, 0)))
+    m.d.comb += self.o_osc_msb.eq(phase_accum[23])
 
     return m
 
@@ -218,19 +231,27 @@ class Sid(Elaboratable):
     dummy = Signal(8)
     rf.genInterface(module=m, bus_addr=self.i_addr, bus_wen=tmp_bus_wen, bus_rdata=dummy, bus_wdata=self.i_data)
 
+    m.submodules.u_wave1 = u_wave1 = WaveformGenerator()
+    m.submodules.u_env1 = u_env1 = EnvelopeGenerator()
+    m.submodules.u_wave2 = u_wave2 = WaveformGenerator()
+    m.submodules.u_env2 = u_env2 = EnvelopeGenerator()
+    m.submodules.u_wave3 = u_wave3 = WaveformGenerator()
+    m.submodules.u_env3 = u_env3 = EnvelopeGenerator()
+
     # Voice 1
     voice1 = Signal(21)
-    m.submodules.u_wave1 = u_wave1 = WaveformGenerator()
     m.d.comb += [
         u_wave1.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_wave1.i_prev_osc_msb.eq(u_wave3.o_osc_msb),
         u_wave1.i_frequency.eq(Cat(r_d400, r_d401)),
         u_wave1.i_duty_cycle.eq(Cat(r_d402, r_d403)),
+        u_wave1.i_hard_sync.eq(r_d404[1]),
+        u_wave1.i_ring_mod.eq(r_d404[2]),
         u_wave1.i_triangle_en.eq(r_d404[4]),
         u_wave1.i_sawtooth_en.eq(r_d404[5]),
         u_wave1.i_pulse_en.eq(r_d404[6]),
         u_wave1.i_noise_en.eq(r_d404[7])
     ]
-    m.submodules.u_env1 = u_env1 = EnvelopeGenerator()
     m.d.comb += [
         u_env1.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
         u_env1.i_gate.eq(r_d404[0]),
@@ -243,17 +264,18 @@ class Sid(Elaboratable):
 
     # Voice 2
     voice2 = Signal(21)
-    m.submodules.u_wave2 = u_wave2 = WaveformGenerator()
     m.d.comb += [
         u_wave2.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_wave2.i_prev_osc_msb.eq(u_wave1.o_osc_msb),
         u_wave2.i_frequency.eq(Cat(r_d407, r_d408)),
         u_wave2.i_duty_cycle.eq(Cat(r_d409, r_d40a)),
+        u_wave2.i_hard_sync.eq(r_d40b[1]),
+        u_wave2.i_ring_mod.eq(r_d40b[2]),
         u_wave2.i_triangle_en.eq(r_d40b[4]),
         u_wave2.i_sawtooth_en.eq(r_d40b[5]),
         u_wave2.i_pulse_en.eq(r_d40b[6]),
         u_wave2.i_noise_en.eq(r_d40b[7])
     ]
-    m.submodules.u_env2 = u_env2 = EnvelopeGenerator()
     m.d.comb += [
         u_env2.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
         u_env2.i_gate.eq(r_d40b[0]),
@@ -266,17 +288,18 @@ class Sid(Elaboratable):
 
     # Voice 3
     voice3 = Signal(21)
-    m.submodules.u_wave3 = u_wave3 = WaveformGenerator()
     m.d.comb += [
         u_wave3.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_wave3.i_prev_osc_msb.eq(u_wave2.o_osc_msb),
         u_wave3.i_frequency.eq(Cat(r_d40e, r_d40f)),
         u_wave3.i_duty_cycle.eq(Cat(r_d410, r_d411)),
+        u_wave3.i_hard_sync.eq(r_d412[1]),
+        u_wave3.i_ring_mod.eq(r_d412[2]),
         u_wave3.i_triangle_en.eq(r_d412[4]),
         u_wave3.i_sawtooth_en.eq(r_d412[5]),
         u_wave3.i_pulse_en.eq(r_d412[6]),
         u_wave3.i_noise_en.eq(r_d412[7])
     ]
-    m.submodules.u_env3 = u_env3 = EnvelopeGenerator()
     m.d.comb += [
         u_env3.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
         u_env3.i_gate.eq(r_d412[0]),
