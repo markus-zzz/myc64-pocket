@@ -817,11 +817,11 @@ module core_top (
     endcase
   end
 
-  reg osd_ctrl;
+  reg [1:0] osd_ctrl;
   always @(posedge clk) begin
     if (rst) osd_ctrl <= 0;
     else if (cpu_mem_addr == 32'h30000000 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
-      osd_ctrl <= cpu_mem_wdata[0];
+      osd_ctrl <= cpu_mem_wdata;
   end
 
   reg [6:0] c64_ctrl;
@@ -940,7 +940,7 @@ module core_top (
 
   // OSD RAM area 256x64 (2KB with 1 bit per pixel)
   wire osd_active;
-  assign osd_active = osd_ctrl && video_de && osd_y[8:6] == 0 && osd_x[8] == 0;
+  assign osd_active = osd_ctrl[0] && video_de && osd_x[8] == 0 && (osd_ctrl[1] ? (osd_y[8:3] == 0) : (osd_y[8:6] == 0));
   assign osd_mem_addr = {osd_y[5:0], osd_x[7:3]};
   assign osd_ram_access = osd_active && osd_x[2:0] == 3'h0;
 

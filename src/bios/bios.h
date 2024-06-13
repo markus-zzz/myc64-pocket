@@ -108,6 +108,10 @@ extern uint64_t c64_keyb_mask;
 extern uint64_t c64_isr_keyb_mask;
 extern uint8_t updated_slots;
 
+typedef enum { OSD_OFF, OSD_FULL, OSD_STATUS_BAR } osd_mode_t;
+
+extern osd_mode_t osd_mode;
+
 void osd_clear();
 void osd_put_char(int x, int y, char c, int invert);
 unsigned osd_put_str(int x, int y, const char *str, int invert);

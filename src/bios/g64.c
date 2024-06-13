@@ -31,6 +31,8 @@ static volatile uint8_t led_on;
 static volatile uint8_t motor_on;
 static volatile uint8_t g64_loaded;
 
+static volatile uint32_t status_bar_timeout;
+
 static void load_track(uint8_t track_id) {
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
@@ -99,6 +101,17 @@ void g64_irq() {
     load_track(req_track_no);
     track_no = req_track_no;
   }
+
+  if (osd_mode == OSD_OFF || osd_mode == OSD_STATUS_BAR) {
+    if (led_on || motor_on) {
+      osd_mode = OSD_STATUS_BAR;
+      status_bar_timeout = timer_ticks + 300;
+    }
+
+    if (osd_mode == OSD_STATUS_BAR && timer_ticks > status_bar_timeout) {
+      osd_mode = OSD_OFF;
+    }
+  }
 }
 
 void g64_handle() {}
@@ -111,4 +124,16 @@ void g64_draw() {
   osd_put_char(x, 20, led_on ? '1' : '0', 0);
   x = osd_put_str(x + 16, 20, "TRACK:$", 0);
   x = osd_put_hex8(x, 20, track_no, 0);
+}
+
+void g64_draw_status_bar() {
+  unsigned x = 2;
+  unsigned y = 0;
+  x = osd_put_str(x, y, "[G64 MOTOR:", 0);
+  osd_put_char(x, y, motor_on ? '1' : '0', 0);
+  x = osd_put_str(x + 16, y, "LED:", 0);
+  osd_put_char(x, y, led_on ? '1' : '0', 0);
+  x = osd_put_str(x + 16, y, "TRACK:$", 0);
+  x = osd_put_hex8(x, y, track_no, 0);
+  osd_put_char(x, y, ']', 0);
 }

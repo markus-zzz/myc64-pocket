@@ -38,6 +38,7 @@ void crts_irq();
 void g64_init();
 void g64_handle();
 void g64_draw();
+void g64_draw_status_bar();
 void g64_irq();
 
 void misc_init();
@@ -67,7 +68,7 @@ uint64_t c64_isr_keyb_mask = 0;
 uint8_t updated_slots;
 
 static volatile int osd_idx;
-static volatile int osd_on;
+osd_mode_t osd_mode;
 
 void load_rom(uint16_t slot_id, volatile uint8_t *dst, uint32_t slot_length) {
   volatile uint8_t *p = (volatile uint8_t *)0x70000000;
@@ -131,17 +132,23 @@ int main(void) {
   cont1_key = 0;
 
   osd_idx = 0;
-  osd_on = 0;
+  osd_mode = OSD_OFF;
 
   osd_clear();
   int osd_idx_prev = osd_idx;
+  osd_mode_t osd_mode_prev = osd_mode;
 
   timer_start(TIMER_TIMEOUT);
   IRQ_ENABLE();
 
   while (1) {
-    int osd_idx_tmp = osd_idx;
-    if (osd_on) {
+    if (osd_mode_prev != osd_mode) {
+      osd_clear();
+      osd_mode_prev = osd_mode;
+    }
+    switch (osd_mode) {
+    case OSD_FULL: {
+      int osd_idx_tmp = osd_idx;
       if (osd_idx_prev != osd_idx_tmp) {
         osd_clear();
         osd_idx_prev = osd_idx_tmp;
@@ -156,6 +163,13 @@ int main(void) {
       const struct osd_tab *tab = &osd_tabs[osd_idx_tmp];
       if (tab->draw)
         tab->draw();
+      break;
+    }
+    case OSD_STATUS_BAR:
+      g64_draw_status_bar();
+      break;
+    case OSD_OFF:
+      break;
     }
   }
 
@@ -194,9 +208,12 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   navigation_keys_prev = navigation_keys;
 
   if (KEYB_POSEDGE(face_select)) {
-    osd_on = !osd_on;
-    *OSD_CTRL = osd_on;
-    if (osd_on) {
+    if (osd_mode == OSD_FULL) {
+      osd_mode = OSD_OFF;
+    } else {
+      osd_mode = OSD_FULL;
+    }
+    if (osd_mode == OSD_FULL) {
       // Read joystick mapping when entering OSD
       joystick1 = bits_get(*C64_CTRL, 1, 2);
       joystick2 = bits_get(*C64_CTRL, 3, 2);
@@ -210,7 +227,7 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
     }
   }
 
-  if (osd_on) {
+  if (osd_mode == OSD_FULL) {
     if (KEYB_POSEDGE(trig_l1)) {
       osd_idx--;
       osd_idx = MAX(osd_idx, 0);
@@ -223,6 +240,18 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
     const struct osd_tab *tab = &osd_tabs[osd_idx];
     if (tab->handle)
       tab->handle();
+  }
+
+  switch (osd_mode) {
+  case OSD_FULL:
+    *OSD_CTRL = 1;
+    break;
+  case OSD_STATUS_BAR:
+    *OSD_CTRL = 3;
+    break;
+  case OSD_OFF:
+    *OSD_CTRL = 0;
+    break;
   }
 
   // Always handle external keyboard
