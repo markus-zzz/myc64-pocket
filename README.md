@@ -1,13 +1,24 @@
 # Analogue Pocket - MyC64
 
-This is a go at wrapping up my very much work in progress C64 emulator for the
-Analogue Pocket. The emulator core itself
-[MyC64](https://github.com/markus-zzz/myc64) was something that I started
-working on as a hobby project during summer of 2020. Sporadically over the
-years I have put some effort into it. Finally it is approaching some level of
-usefulness.
+The MyC64 core is my go at writing a FPGA based C64 emulator. It is a project I
+started during the summer of 2020, at that point targeting the [ULX3S
+board](https://radiona.org/ulx3s/). Initially it made good progress but then
+nothing happened for a long long time.
 
-## Setup
+Years later the [Analogue Pocket](https://www.analogue.co/pocket) came along
+with its [openFPGA framework](https://www.analogue.co/developer) and slightly
+after Christmas 2023 I decided to get started on its current incarnation.
+
+## What can it do?
+
+Have a look at this [Youtube
+playlist](https://youtube.com/playlist?list=PLZUvG8cL98Z_DWweg3JRiITaK35yoCMK0&si=WcyRysbsj9mhh51e)
+(which I will try to keep up-to-date when something noteworthy is added).
+
+In short though, the core is still work-in-progress but quite a lot of things
+actually do work (plus minus some emulation discrepancies).
+
+## Setup instructions
 
 Simply unzip the `MyC64-Pocket.zip` (from releases) in the root directory of
 the Analogue Pocket's SD card.
@@ -33,10 +44,22 @@ they then need to be placed in `/media/Assets/c64/common/` as follows
 /media/Assets/c64/common/1541-e000.bin
 ```
 
-### User PRGs
+## Supported formats
 
-As of Analogue firmware version 2.2 normal C64 `.prg` files can be placed in
-`/media/Assets/c64/common/` and loaded.
+All assets are to placed in `/media/Assets/c64/common/` or sub-directories
+thereof.
+
+### PRG
+
+Standard `.prg` files are supported.
+
+Select the desired `.prg` file from the **Core Settings->Load & Start PRG** and
+the following sequence will be initiated
+
+1. Core resets
+2. Wait 2.5s (until booted)
+3. Inject `.prg` into RAM
+4. Inject a `RUN<RET>` key sequence
 
 Suggestions are [Supermon+64](https://github.com/jblang/supermon64) and the
 [High Voltage SID Collection (HVSC)](https://www.hvsc.c64.org/) converted to
@@ -47,8 +70,10 @@ titles `OneLoad64-Games-Collection-v5.7z` (just google it). From what I can
 tell the majority of the collection's crunched `.prg` files (found in
 `AlternativeFormats/PRGs/Crunched/`) load up properly. It is important to pick
 the crunched ones as the uncrunched will attempt to replace the entire RAM
-which is not supported while the system is running. Pocket appears to truncate
-directories containing more than 1500 files so indexing as below is suggested.
+which is not supported while the system is running.
+
+The Pocket appears to truncate directories containing more than 1500 files so
+indexing as below is suggested.
 
 ```
 $ p7zip -d OneLoad64-Games-Collection-v5.7z
@@ -63,13 +88,35 @@ wiki page [Working
 PRGs](https://github.com/markus-zzz/myc64-pocket/wiki/Working-PRGs) that anyone
 (on github) can edit. Please feel free to update it with your findings!
 
+### CRT
+
+Currently only the *Magic Desk* cartridge format as defined in the `.crt`
+[format specification](https://ist.uwaterloo.ca/~schepers/formats/CRT.TXT) is
+supported. This is however the format that is used by the `.crt` files in the
+*OneLoad64* games collection (besides a few *Easy Flash* found in
+`AlternativeFormats/EasyFlash`).
+
+Select the desired `.crt` file from the **Core Settings->Load & Start CRT**
+browser. The emulated cartridge will be inserted into the system and the C64 is
+automatically reset to boot up its contents.
+
+Cartridges of unsupported formats are silently ignored (and no reset is
+triggered).
+
+
 ### D64/G64
 
-Experimental 1541 drive support (read only) is included. As the core tries to
-emulate the real drive using the original ROMs it needs the raw GCR bitstream
-that the read head would see as input. In other words the common `.d64` format
-is not directly supported but rather the lower level `.g64` format must be
-used.
+The core contains emulation of a [Commodore
+1541](https://en.wikipedia.org/wiki/Commodore_1541) floppy disk drive
+(currently read-only). Emulation is low level and the real ROMs are used.  As a
+result the decode circuitry need to have the raw
+[GCR](https://en.wikipedia.org/wiki/Group_coded_recording) bitstream (that the
+read head of a real drive would see) as its input.
+
+In other words the common `.d64`
+[format](http://unusedino.de/ec64/technical/formats/d64.html) is not directly
+supported but rather the lower level `.g64`
+[format](http://www.unusedino.de/ec64/technical/formats/g64.html) must be used.
 
 A bit further down the road the housekeeping CPU could probably perform this
 conversion on the fly but right now `.d64` files need to be converted to `.g64`
@@ -86,19 +133,19 @@ $ cd OpenCBM
 $ make -f LINUX/Makefile
 ```
 
-Once the `.g64` slot is loaded from the **Core Settings->Load G64 Slot**
-file browser normal C64 disk commands can be applied such as
+Select the desired `.g64` file from the **Core Settings->Load G64 Slot**
+browser and the disk image will be inserted into the emulated 1541 floppy
+drive.
 
-```
-LOAD"$",8
-LIST
-```
+At this point the user needs to do normal interaction such as `LOAD"$",8`
+followed by a `LIST` to get a directory listing or simply a `LOAD"*",8`
+followed by a `RUN` to load and run the first program of the disk.
 
-to get a directory listing of the disk. Note that on the C64 keyboard `"` is
-`<SHIFT>+2` and `$` is `<SHIFT>+4` (read the section about sticky keys for how
-to access the shift modifier on the virtual keyboard).
+Note that on the C64 keyboard `"` is `<SHIFT>+2` and `$` is `<SHIFT>+4` (read
+the section about sticky keys for how to access the shift modifier on the
+virtual keyboard).
 
-## Usage
+## General usage
 
 Pressing **left-of-analogue** brings up (toggles) the on-screen-display
 containing a virtual keyboard and a small menu system for settings.
@@ -108,9 +155,6 @@ modifiers such as shift) and the **face-y** button clears any sticky key.
 Normal key press is accomplished with the **face-a** button.
 
 Pressing **trig-l1** and **trig-r1** navigates through the different menu tabs.
-
-Loading and starting `.prg` files is accomplished by simply selecting the file
-in the AP's **Core Settings->Load & Start PRG** file browser.
 
 Controllers can be mapped to C64 joystick ports in the **MISC** menu tab and
 there you will also find a reset button for the emulator core.
