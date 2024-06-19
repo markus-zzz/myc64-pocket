@@ -124,7 +124,18 @@ format manually.
 
 The utility program `nibconv` from
 [NIBTools](https://c64preservation.com/dp.php?pg=nibtools) can be used to
-convert between `.d64` and `.g64`. For Linux it is obtained and built as
+convert between `.d64` and `.g64`. 
+
+Usage example:
+
+```sh
+nibconv somedisk.d64 somedisk.g64
+```
+#### Obtaining nibtools
+
+##### Linux
+
+For Linux it is obtained and built as
 follows (for windows pre-built executables are available).
 
 ```
@@ -132,6 +143,16 @@ $ git clone --recurse-submodules https://github.com/OpenCBM/OpenCBM.git
 $ cd OpenCBM
 $ make -f LINUX/Makefile
 ```
+
+##### MacOSX
+
+On MacOSX you can auto-build nibtools using [Homebrew](https://brew.sh) and [hitorisensei/homebrew-taps/nibtools](https://github.com/HitoriSensei/homebrew-taps/nibtools) tap
+
+```
+brew install hitorisensei/homebrew-taps/nibtools
+```
+
+#### Loading G64 images
 
 Select the desired `.g64` file from the **Core Settings->Load G64 Slot**
 browser and the disk image will be inserted into the emulated 1541 floppy
