@@ -129,9 +129,16 @@ convert between `.d64` and `.g64`.
 Usage example:
 
 ```sh
-nibconv somedisk.d64 somedisk.g64
+$ nibconv somedisk.d64 somedisk.g64
 ```
 #### Obtaining nibtools
+
+##### Windows
+
+You can download pre-build binaries for windows from [c64preservation.com files](https://c64preservation.com/files/nibtools/)
+
+* For **64-bit** machine use `amd64` version
+* For **32-bit** machine use `win32` version
 
 ##### Linux
 
@@ -149,7 +156,7 @@ $ make -f LINUX/Makefile
 On MacOSX you can auto-build nibtools using [Homebrew](https://brew.sh) and [hitorisensei/homebrew-taps/nibtools](https://github.com/HitoriSensei/homebrew-taps/nibtools) tap
 
 ```
-brew install hitorisensei/homebrew-taps/nibtools
+$ brew install hitorisensei/homebrew-taps/nibtools
 ```
 
 #### Loading G64 images
