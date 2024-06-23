@@ -684,7 +684,7 @@ module core_top (
   wire [7:0] c64_cart_lo_data;
   wire [7:0] c64_cart_hi_data;
   spram #(
-      .aw(17),
+      .aw(19),
       .dw(8)
   ) u_c64_cart_rom_lo (
       .clk (clk),
@@ -696,8 +696,9 @@ module core_top (
       .di  (ext_data),
       .we  (ext_rom_cart_lo_we)
   );
+
   spram #(
-      .aw(17),
+      .aw(19),
       .dw(8)
   ) u_c64_cart_rom_hi (
       .clk (clk),

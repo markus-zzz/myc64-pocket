@@ -31,6 +31,6 @@ $ ./core_top-sim --dump-video --keys "[150]LOAD<LSHIFT>2<LSHIFT>4<LSHIFT>2,8<RET
 
 Encode a `.mp4` of simulation output
 ```
-$ ffmpeg -r 60 -pattern_type glob -i 'vicii-*.png' -vcodec libx264 -crf 22 video.mp4
+$ ffmpeg -r 50 -pattern_type glob -i 'vicii-*.png' -c:v libx264 -pix_fmt yuv420p  pigsquest.mp4
 ```
 

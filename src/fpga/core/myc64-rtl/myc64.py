@@ -106,6 +106,12 @@ class MyC64(Elaboratable):
     u_ram_color_wp = u_ram_color.write_port()
     m.submodules += [u_ram_color_rp, u_ram_color_wp]
 
+    # EasyFlash RAM
+    u_ram_easyflash = Memory(width=8, depth=pow(2, 8))
+    u_ram_easyflash_rp = u_ram_easyflash.read_port()
+    u_ram_easyflash_wp = u_ram_easyflash.write_port()
+    m.submodules += [u_ram_easyflash_rp, u_ram_easyflash_wp]
+
     cpu_di = Signal(8)
     ram_cs = Signal()
     sid_cs = Signal()
@@ -129,6 +135,9 @@ class MyC64(Elaboratable):
         u_ram_color_rp.addr.eq(bus_addr),
         u_ram_color_wp.addr.eq(bus_addr),
         u_ram_color_wp.data.eq(bus_do),
+        u_ram_easyflash_rp.addr.eq(bus_addr),
+        u_ram_easyflash_wp.addr.eq(bus_addr),
+        u_ram_easyflash_wp.data.eq(bus_do),
         self.o_ram_main_data.eq(bus_do),
         self.o_ram_main_we.eq(ram_cs & bus_we),
         u_ram_color_wp.en.eq(color_cs & bus_we)
@@ -136,11 +145,12 @@ class MyC64(Elaboratable):
 
     cart_bank_de00 = Signal(8)
     m.d.comb += self.o_cart_addr.eq(Cat(bus_addr[0:13], cart_bank_de00))
+    cart_easyflash_de02 = Signal(8)
 
     # Bank switching - following the table from
     # https://www.c64-wiki.com/wiki/Bank_Switching
     mode_bits = Signal(5)
-    m.d.comb += mode_bits.eq(Cat(cpu_po[0:3], self.i_cart_game, self.i_cart_exrom))
+    m.d.comb += mode_bits.eq(Cat(cpu_po[0:3], Mux(cart_easyflash_de02[2], ~cart_easyflash_de02[0], 0b0), ~cart_easyflash_de02[1]))
     m.d.comb += [
         cpu_di.eq(0),
         ram_cs.eq(0),
@@ -200,6 +210,10 @@ class MyC64(Elaboratable):
           # Handle cartridge bank select register $DE00
           with m.If((cpu_addr == 0xDE00) & cpu_we):
             m.d.sync += cart_bank_de00.eq(cpu_do)
+          with m.If((cpu_addr == 0xDE02) & cpu_we):
+            m.d.sync += cart_easyflash_de02.eq(cpu_do)
+          with m.If(cpu_addr[8:16] == 0xDE):
+            m.d.comb += [u_ram_easyflash_wp.en.eq(bus_we), cpu_di.eq(u_ram_easyflash_rp.data)]
 
         with m.Case('11-00', '0--00', '00001'):
           m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
