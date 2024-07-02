@@ -88,7 +88,7 @@ static void ds_read(uint16_t slot_id, uint32_t slot_offset, uint32_t length,
 
 static void load_crt(uint16_t slot_id) {
   uint8_t *ROM_LO = (uint8_t *)0x51000000;
-  uint8_t *ROM_HI = (uint8_t *)0x52000000;
+  uint8_t *ROM_HI = ROM_LO + (1 << 19);
   uint32_t slot_length = get_ds_length(slot_id);
   if (!slot_length)
     return;
@@ -121,10 +121,10 @@ static void load_crt(uint16_t slot_id) {
 
   switch (cart_hw_type) {
     case 19: // Magic Desk
-      misc_reset_core(/*EXROM=*/0, /*GAME=*/1); // Reset C64 and 1541
+      misc_reset_core(1); // Reset C64 and 1541
       break;
-    case 32: // Magic Desk (set Ultimax mode)
-      misc_reset_core(/*EXROM=*/1, /*GAME=*/0); // Reset C64 and 1541
+    case 32: // EasyFlash
+      misc_reset_core(2); // Reset C64 and 1541
       break;
   }
 }

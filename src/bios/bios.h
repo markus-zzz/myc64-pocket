@@ -134,4 +134,4 @@ static inline uint32_t bits_set(uint32_t in, uint32_t pos, uint32_t width,
   return in | (val << pos);
 }
 
-void misc_reset_core(uint32_t exrom, uint32_t game);
+void misc_reset_core(uint8_t cart_type);

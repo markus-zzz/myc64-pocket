@@ -25,7 +25,7 @@ static volatile int sel_row;
 uint8_t joystick1;
 uint8_t joystick2;
 
-void misc_reset_core(uint32_t exrom, uint32_t game) {
+void misc_reset_core(uint8_t cart_type) {
   // Clear any "CBM80" cartridge auto start signature at $8000
   // XXX: Note that we currently cannot do that during reset since we depend on
   // the 1MHz phase enable signals during C64 RAM access.
@@ -34,8 +34,7 @@ void misc_reset_core(uint32_t exrom, uint32_t game) {
     C64_RAM[0x8000 + i] = 0;
   }
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0);     // Assert reset for MyC64
-  *C64_CTRL = bits_set(*C64_CTRL, 5, 1, exrom); // EXROM
-  *C64_CTRL = bits_set(*C64_CTRL, 6, 1, game);  // GAME
+  *C64_CTRL = bits_set(*C64_CTRL, 5, 2, cart_type); // Set cartridge type
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1);     // Release reset for MyC64
 }
 
@@ -53,7 +52,7 @@ void misc_handle() {
   if (KEYB_POSEDGE(face_a)) {
     switch (sel_row) {
     case 0:
-      misc_reset_core(/*EXROM=*/1, /*GAME=*/1);
+      misc_reset_core(0); // Reset with no cartridge
       break;
     case 1:
       joystick1 = joystick1 < 2 ? joystick1 + 1 : 0;

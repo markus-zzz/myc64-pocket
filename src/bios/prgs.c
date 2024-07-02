@@ -111,7 +111,7 @@ void prgs_irq() {
   case IS_IDLE:
     c64_isr_keyb_mask = 0;
     if (updated_slots & (1 << PRG_SLOT_ID)) {
-      misc_reset_core(/*EXROM=*/1, /*GAME=*/1); // Reset C64 and 1541
+      misc_reset_core(0); // Reset C64 and 1541
       inject_wait = timer_ticks + 300;
       inject_state = IS_WAIT_BOOT;
     }

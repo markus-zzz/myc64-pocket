@@ -551,11 +551,9 @@ module core_top (
       .o_iec_data_out(iec_c64_data_out),
       .i_iec_clock_in(iec_clock),
       .o_iec_clock_out(iec_c64_clock_out),
-      .i_cart_exrom(c64_ctrl[5]),
-      .i_cart_game(c64_ctrl[6]),
+      .i_cart_type(c64_ctrl[6:5]),
       .o_cart_addr(c64_cart_addr),
-      .i_cart_rom_lo(c64_cart_lo_data),
-      .i_cart_rom_hi(c64_cart_hi_data)
+      .i_cart_data(c64_cart_data)
   );
 
   wire [15:0] c1541_bus_addr;
@@ -680,35 +678,24 @@ module core_top (
       .we  (ext_rom_kernal_we)
   );
 
-  wire [20:0] c64_cart_addr;
-  wire [7:0] c64_cart_lo_data;
-  wire [7:0] c64_cart_hi_data;
+  wire [19:0] c64_cart_addr;
+  wire [7:0] c64_cart_data;
   spram #(
-      .aw(19),
+`ifdef __VERILATOR__
+      .aw(20),
+`else
+      .aw(17),
+`endif
       .dw(8)
   ) u_c64_cart_rom_lo (
       .clk (clk),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
-      .addr(ext_rom_cart_lo_we ? ext_addr : c64_cart_addr),
-      .do  (c64_cart_lo_data),
+      .addr(ext_rom_cart_we ? ext_addr : c64_cart_addr),
+      .do  (c64_cart_data),
       .di  (ext_data),
-      .we  (ext_rom_cart_lo_we)
-  );
-
-  spram #(
-      .aw(19),
-      .dw(8)
-  ) u_c64_cart_rom_hi (
-      .clk (clk),
-      .rst (rst),
-      .ce  (1'b1),
-      .oe  (1'b1),
-      .addr(ext_rom_cart_hi_we ? ext_addr : c64_cart_addr),
-      .do  (c64_cart_hi_data),
-      .di  (ext_data),
-      .we  (ext_rom_cart_hi_we)
+      .we  (ext_rom_cart_we)
   );
 
   //
@@ -763,8 +750,7 @@ module core_top (
   wire ext_rom_basic_we;
   wire ext_rom_char_we;
   wire ext_rom_kernal_we;
-  wire ext_rom_cart_lo_we;
-  wire ext_rom_cart_hi_we;
+  wire ext_rom_cart_we;
   wire ext_rom_1541_we;
 
   assign ext_ram_we = (cpu_mem_addr[31:16] == 16'h5000) && cpu_mem_valid && (cpu_mem_wstrb != 0);
@@ -772,8 +758,7 @@ module core_top (
   assign ext_rom_char_we = (cpu_mem_addr[31:16] == 16'h5002) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_kernal_we = (cpu_mem_addr[31:16] == 16'h5003) && cpu_mem_valid && (cpu_mem_wstrb != 0);
   assign ext_rom_1541_we = (cpu_mem_addr[31:16] == 16'h5004) && cpu_mem_valid && (cpu_mem_wstrb != 0);
-  assign ext_rom_cart_lo_we = (cpu_mem_addr[31:24] == 8'h51) && cpu_mem_valid && (cpu_mem_wstrb != 0);
-  assign ext_rom_cart_hi_we = (cpu_mem_addr[31:24] == 8'h52) && cpu_mem_valid && (cpu_mem_wstrb != 0);
+  assign ext_rom_cart_we = (cpu_mem_addr[31:24] == 8'h51) && cpu_mem_valid && (cpu_mem_wstrb != 0);
 
   always @* begin
     case (cpu_mem_wstrb)

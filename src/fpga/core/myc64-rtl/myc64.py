@@ -24,6 +24,79 @@ from cia import Cia
 from vicii import VicII
 from sid import Sid
 
+class Cartridge(Elaboratable):
+  def __init__(self):
+    self.i_cart_type = Signal(2)
+
+    self.i_addr = Signal(16)
+    self.i_we = Signal()
+    self.i_data = Signal(8)
+    self.o_data = Signal(8)
+
+    self.i_io1 = Signal()
+    self.i_io2 = Signal()
+    self.i_roml = Signal()
+    self.i_romh = Signal()
+
+    self.o_exrom = Signal()
+    self.o_game = Signal()
+
+    self.o_nmi = Signal()
+
+    self.o_mem_addr = Signal(20)
+    self.o_mem_we = Signal()
+    self.o_mem_data = Signal(8)
+    self.i_mem_data = Signal(8)
+
+    self.i_freeze = Signal()
+
+  def elaborate(self, platform):
+    m = Module()
+
+    # EasyFlash RAM
+    u_ram_easyflash = Memory(width=8, depth=pow(2, 8))
+    u_ram_easyflash_rp = u_ram_easyflash.read_port()
+    u_ram_easyflash_wp = u_ram_easyflash.write_port()
+    m.submodules += [u_ram_easyflash_rp, u_ram_easyflash_wp]
+    m.d.comb += [u_ram_easyflash_wp.addr.eq(self.i_addr), u_ram_easyflash_wp.data.eq(self.i_data)]
+
+    reg_de00 = Signal(8)
+    reg_de02 = Signal(8)
+
+    m.d.comb += [self.o_exrom.eq(1), self.o_game.eq(1)]
+    m.d.comb += [self.o_mem_we.eq(0)]
+    m.d.comb += self.o_data.eq(self.i_mem_data)
+
+    with m.Switch(self.i_cart_type):
+      with m.Case(0): # No cartridge
+        pass
+
+      with m.Case(1): # Magic Desk
+        with m.If(self.i_io1 & self.i_we & (self.i_addr[0:8] == 0x00)):
+          m.d.sync += reg_de00.eq(self.i_data)
+        with m.If(~reg_de00[7]):
+          m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[0:7]))
+
+      with m.Case(2): # EasyFlash
+        m.d.comb += [self.o_game.eq(Mux(reg_de02[2], ~reg_de02[0], 0b0)), self.o_exrom.eq(~reg_de02[1])]
+        with m.If(self.i_io1 & self.i_we):
+          with m.If(self.i_addr[0:8] == 0x00):
+            m.d.sync += reg_de00.eq(self.i_data)
+          with m.If(self.i_addr[0:8] == 0x02):
+            m.d.sync += reg_de02.eq(self.i_data)
+
+        with m.If(self.i_io2):
+          m.d.comb += [self.o_data.eq(u_ram_easyflash_rp.data), u_ram_easyflash_wp.en.eq(self.i_we)]
+
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[0:6], self.i_romh))
+
+      with m.Case(3): # Action Replay
+        pass
+
+    return m
+
+
 
 class MyC64(Elaboratable):
   def __init__(self):
@@ -53,18 +126,16 @@ class MyC64(Elaboratable):
     self.i_iec_clock_in = Signal()
     self.o_iec_clock_out = Signal()
 
-    self.i_cart_exrom = Signal()
-    self.i_cart_game = Signal()
-    self.o_cart_addr = Signal(21)
-    self.i_cart_rom_lo = Signal(8)
-    self.i_cart_rom_hi = Signal(8)
+    self.i_cart_type = Signal(2)
+    self.o_cart_addr = Signal(20)
+    self.i_cart_data = Signal(8)
 
     self.ports = [
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
         self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
         self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
-        self.i_cart_exrom, self.i_cart_game, self.o_cart_addr, self.i_cart_rom_lo, self.i_cart_rom_hi
+        self.i_cart_type, self.o_cart_addr, self.i_cart_data
     ]
 
   def elaborate(self, platform):
@@ -100,17 +171,14 @@ class MyC64(Elaboratable):
     # CIA-2.
     m.submodules.u_cia2 = u_cia2 = Cia()
 
+    # Cartridge.
+    m.submodules.u_cart = u_cart = Cartridge()
+
     # Color RAM.
     u_ram_color = Memory(width=4, depth=pow(2, 10))
     u_ram_color_rp = u_ram_color.read_port()
     u_ram_color_wp = u_ram_color.write_port()
     m.submodules += [u_ram_color_rp, u_ram_color_wp]
-
-    # EasyFlash RAM
-    u_ram_easyflash = Memory(width=8, depth=pow(2, 8))
-    u_ram_easyflash_rp = u_ram_easyflash.read_port()
-    u_ram_easyflash_wp = u_ram_easyflash.write_port()
-    m.submodules += [u_ram_easyflash_rp, u_ram_easyflash_wp]
 
     cpu_di = Signal(8)
     ram_cs = Signal()
@@ -135,22 +203,24 @@ class MyC64(Elaboratable):
         u_ram_color_rp.addr.eq(bus_addr),
         u_ram_color_wp.addr.eq(bus_addr),
         u_ram_color_wp.data.eq(bus_do),
-        u_ram_easyflash_rp.addr.eq(bus_addr),
-        u_ram_easyflash_wp.addr.eq(bus_addr),
-        u_ram_easyflash_wp.data.eq(bus_do),
         self.o_ram_main_data.eq(bus_do),
         self.o_ram_main_we.eq(ram_cs & bus_we),
         u_ram_color_wp.en.eq(color_cs & bus_we)
     ]
 
-    cart_bank_de00 = Signal(8)
-    m.d.comb += self.o_cart_addr.eq(Cat(bus_addr[0:13], cart_bank_de00))
-    cart_easyflash_de02 = Signal(8)
+    m.d.comb += [
+        u_cart.i_cart_type.eq(self.i_cart_type),
+        u_cart.i_addr.eq(bus_addr),
+        u_cart.i_data.eq(bus_do),
+        u_cart.i_we.eq(bus_we),
+        self.o_cart_addr.eq(u_cart.o_mem_addr),
+        u_cart.i_mem_data.eq(self.i_cart_data),
+    ]
 
     # Bank switching - following the table from
     # https://www.c64-wiki.com/wiki/Bank_Switching
     mode_bits = Signal(5)
-    m.d.comb += mode_bits.eq(Cat(cpu_po[0:3], Mux(cart_easyflash_de02[2], ~cart_easyflash_de02[0], 0b0), ~cart_easyflash_de02[1]))
+    m.d.comb += mode_bits.eq(Cat(cpu_po[0:3], u_cart.o_game, u_cart.o_exrom))
     m.d.comb += [
         cpu_di.eq(0),
         ram_cs.eq(0),
@@ -173,7 +243,7 @@ class MyC64(Elaboratable):
       m.d.comb += ram_cs.eq(1)
       with m.Switch(mode_bits):
         with m.Case('10---', '01111', '01011', '00111', '00011'):
-          m.d.comb += [cpu_di.eq(self.i_cart_rom_lo)]
+          m.d.comb += [u_cart.i_roml.eq(1), cpu_di.eq(u_cart.o_data)]
         with m.Default():
           m.d.comb += [cpu_di.eq(self.i_ram_main_data)]
     # RAM, BASIC interpretor ROM, cartridge ROM or is unmapped
@@ -184,7 +254,7 @@ class MyC64(Elaboratable):
         with m.Case('10---'):
           pass
         with m.Case('00111', '00110', '00011', '00010'):
-          m.d.comb += [cpu_di.eq(self.i_cart_rom_hi), ram_cs.eq(1)]
+          m.d.comb += [u_cart.i_romh.eq(1), cpu_di.eq(u_cart.o_data), ram_cs.eq(1)]
         with m.Default():
           m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM or is unmapped
@@ -207,13 +277,11 @@ class MyC64(Elaboratable):
           with m.Elif((0xDD00 <= cpu_addr) & (cpu_addr <= 0xDDFF)):  # CIA2
             m.d.comb += [cpu_di.eq(u_cia2.o_data), cia2_cs.eq(1)]
 
-          # Handle cartridge bank select register $DE00
-          with m.If((cpu_addr == 0xDE00) & cpu_we):
-            m.d.sync += cart_bank_de00.eq(cpu_do)
-          with m.If((cpu_addr == 0xDE02) & cpu_we):
-            m.d.sync += cart_easyflash_de02.eq(cpu_do)
+          # Handle cartridge IO1/IO2
           with m.If(cpu_addr[8:16] == 0xDE):
-            m.d.comb += [u_ram_easyflash_wp.en.eq(bus_we), cpu_di.eq(u_ram_easyflash_rp.data)]
+            m.d.comb += u_cart.i_io1.eq(1)
+          with m.If(cpu_addr[8:16] == 0xDF):
+            m.d.comb += u_cart.i_io2.eq(1)
 
         with m.Case('11-00', '0--00', '00001'):
           m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
@@ -226,7 +294,7 @@ class MyC64(Elaboratable):
         with m.Case('11111', '-1110', '11011', '-1010', '01111', '01011', '00111', '00110', '00011', '00010'):
           m.d.comb += [cpu_di.eq(self.i_rom_kernal_data), ram_cs.eq(1)]
         with m.Case('10---'):
-          m.d.comb += [cpu_di.eq(self.i_cart_rom_hi), ram_cs.eq(1)]
+          m.d.comb += [u_cart.i_romh.eq(1), cpu_di.eq(u_cart.o_data), ram_cs.eq(1)]
         with m.Default():
           m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
 

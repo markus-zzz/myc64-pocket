@@ -123,7 +123,6 @@ int main(void) {
   load_rom(203, (volatile uint8_t *)0x50040000, 8192);
   load_rom(204, (volatile uint8_t *)(0x50040000 + 8192), 8192);
 
-  *C64_CTRL = bits_set(*C64_CTRL, 5, 2, 3); // EXROM=1,GAME=1
   *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 2); // Joystick1 = cont2
   *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 1); // Joystick2 = cont1
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1); // Release reset for MyC64
