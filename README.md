@@ -13,7 +13,7 @@ after Christmas 2023 I decided to get started on its current incarnation.
 
 Have a look at this [Youtube
 playlist](https://youtube.com/playlist?list=PLZUvG8cL98Z_DWweg3JRiITaK35yoCMK0&si=WcyRysbsj9mhh51e)
-(which I will try to keep up-to-date when something noteworthy is added).
+(that I will try to keep up-to-date when something noteworthy is added).
 
 In short though, the core is still work-in-progress but quite a lot of things
 actually do work (plus minus some emulation discrepancies).
@@ -46,7 +46,7 @@ they then need to be placed in `/media/Assets/c64/common/` as follows
 
 ## Supported formats
 
-All assets are to placed in `/media/Assets/c64/common/` or sub-directories
+All assets are to be placed in `/media/Assets/c64/common/` or sub-directories
 thereof.
 
 ### PRG
@@ -124,7 +124,7 @@ format manually.
 
 The utility program `nibconv` from
 [NIBTools](https://c64preservation.com/dp.php?pg=nibtools) can be used to
-convert between `.d64` and `.g64`. 
+convert between `.d64` and `.g64`.
 
 Usage example:
 
@@ -135,15 +135,12 @@ $ nibconv somedisk.d64 somedisk.g64
 
 ##### Windows
 
-You can download pre-build binaries for windows from [c64preservation.com files](https://c64preservation.com/files/nibtools/)
-
-* For **64-bit** machine use `amd64` version
-* For **32-bit** machine use `win32` version
+You can download pre-build binaries for windows from [c64preservation.com
+files](https://c64preservation.com/files/nibtools/).
 
 ##### Linux
 
-For Linux it is obtained and built as
-follows (for windows pre-built executables are available).
+For Linux it is obtained and built as follows
 
 ```
 $ git clone --recurse-submodules https://github.com/OpenCBM/OpenCBM.git
@@ -153,7 +150,9 @@ $ make -f LINUX/Makefile
 
 ##### MacOSX
 
-On MacOSX you can auto-build nibtools using [Homebrew](https://brew.sh) and [hitorisensei/homebrew-taps/nibtools](https://github.com/HitoriSensei/homebrew-taps/nibtools) tap
+On MacOSX you can auto-build nibtools using [Homebrew](https://brew.sh) and
+[hitorisensei/homebrew-taps/nibtools](https://github.com/HitoriSensei/homebrew-taps/nibtools)
+tap
 
 ```
 $ brew install hitorisensei/homebrew-taps/nibtools
