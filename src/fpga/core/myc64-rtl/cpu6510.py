@@ -79,13 +79,31 @@ class Cpu6510(Elaboratable):
     m.d.comb += we.eq(~we_n)
     m.d.comb += [self.o_addr.eq(addr), self.o_data.eq(data_o), self.o_we.eq(we)]
 
-    with m.If(clk_enable & we & (self.o_addr == 0x0001)):
-      m.d.sync += self.o_port.eq(data_o[0:6])
+    port_dir = Signal(6)
+    port = Signal(6)
+
+    for idx in range(6):
+      m.d.comb += self.o_port[idx].eq(Mux(port_dir[idx], port[idx], C(0b1, 1)))
+
+    with m.If(clk_enable & we):
+      with m.Switch(self.o_addr):
+        with m.Case(0x0000):
+          m.d.sync += port_dir.eq(data_o[0:6])
+        with m.Case(0x0001):
+          m.d.sync += port.eq(data_o[0:6])
 
     data_ir = Signal(8)
     with m.If(self.clk_1mhz_ph2_en & ~self.i_stun):
       m.d.sync += data_ir.eq(self.i_data)
 
-    m.d.comb += data_i.eq(Mux(self.o_addr == 0x0001, self.o_port, data_ir))
+    with m.Switch(self.o_addr):
+      with m.Case(0x0000):
+        m.d.comb += data_i.eq(port_dir)
+      with m.Case(0x0001):
+        m.d.comb += data_i.eq(0x00)
+        for idx in range(6):
+          m.d.comb += data_i[idx].eq(Mux(port_dir[idx], port[idx], self.i_port[idx]))
+      with m.Default():
+        m.d.comb += data_i.eq(data_ir)
 
     return m
