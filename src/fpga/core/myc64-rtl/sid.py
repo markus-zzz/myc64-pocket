@@ -227,6 +227,8 @@ class Sid(Elaboratable):
     r_d413 = rf.addRegRW(addr=0xd413, width=8)  # Voice 3 Attack and Decay length.
     r_d414 = rf.addRegRW(addr=0xd414, width=8)  # Voice 3 Sustain volume and Release length.
 
+    r_d418 = rf.addRegRW(addr=0xd418, width=8)  # Volume and filter modes.
+
     tmp_bus_wen = (self.clk_1mhz_ph1_en & self.i_cs & self.i_we)
     dummy = Signal(8)
     rf.genInterface(module=m, bus_addr=self.i_addr, bus_wen=tmp_bus_wen, bus_rdata=dummy, bus_wdata=self.i_data)
@@ -308,9 +310,12 @@ class Sid(Elaboratable):
         u_env3.i_sustain.eq(r_d414[4:8]),
         u_env3.i_release.eq(r_d414[0:4])
     ]
-    m.d.comb += voice3.eq((u_wave3.o_wave - C(0x800, 12)).as_signed() * u_env3.o_envelope.as_unsigned())
+    m.d.comb += voice3.eq(Mux(r_d418[7], 0, (u_wave3.o_wave - C(0x800, 12)).as_signed() * u_env3.o_envelope.as_unsigned()))
 
-    m.d.sync += self.o_wave.eq(voice1[7:21].as_signed() + voice2[7:21].as_signed() + voice3[7:21].as_signed())
+
+    wave = Signal(16)
+    m.d.sync += wave.eq(voice1[7:21].as_signed() + voice2[7:21].as_signed() + voice3[7:21].as_signed())
+    m.d.sync += self.o_wave.eq((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4)
 
     with m.Switch(self.i_addr):
       with m.Case(0x1b):
