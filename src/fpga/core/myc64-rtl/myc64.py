@@ -24,6 +24,80 @@ from cia import Cia
 from vicii import VicII
 from sid import Sid
 
+class Cartridge(Elaboratable):
+  def __init__(self):
+    self.i_cart_type = Signal(2)
+
+    self.i_addr = Signal(16)
+    self.i_we = Signal()
+    self.i_data = Signal(8)
+    self.o_data = Signal(8)
+
+    self.i_io1 = Signal()
+    self.i_io2 = Signal()
+    self.i_roml = Signal()
+    self.i_romh = Signal()
+
+    self.o_exrom = Signal()
+    self.o_game = Signal()
+
+    self.o_nmi = Signal()
+
+    self.o_mem_addr = Signal(21)
+    self.o_mem_we = Signal()
+    self.o_mem_data = Signal(8)
+    self.i_mem_data = Signal(8)
+
+    self.i_freeze = Signal()
+
+  def elaborate(self, platform):
+    m = Module()
+
+    reg_de00 = Signal(8)
+    reg_de02 = Signal(8)
+
+    m.d.comb += [self.o_exrom.eq(1), self.o_game.eq(1)]
+    m.d.comb += [self.o_mem_we.eq(0)]
+    m.d.comb += [self.o_data.eq(self.i_mem_data), self.o_mem_data.eq(self.i_data)]
+
+    with m.Switch(self.i_cart_type):
+      with m.Case(0): # No cartridge
+        pass
+
+      with m.Case(1): # Magic Desk
+        with m.If(self.i_io1 & self.i_we & (self.i_addr[0:8] == 0x00)):
+          m.d.sync += reg_de00.eq(self.i_data)
+        with m.If(~reg_de00[7]):
+          m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[0:7]))
+
+      with m.Case(2): # EasyFlash
+        m.d.comb += [self.o_game.eq(Mux(reg_de02[2], ~reg_de02[0], 0b0)), self.o_exrom.eq(~reg_de02[1])]
+        with m.If(self.i_io1 & self.i_we):
+          with m.If(self.i_addr[0:8] == 0x00):
+            m.d.sync += reg_de00.eq(self.i_data)
+          with m.If(self.i_addr[0:8] == 0x02):
+            m.d.sync += reg_de02.eq(self.i_data)
+
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[0:6], self.i_romh))
+        with m.If(self.i_io2):
+          m.d.comb += [self.o_mem_addr.eq(0x100000 + self.i_addr[0:8]), self.o_mem_we.eq(self.i_we)]
+
+      with m.Case(3): # Action Replay
+        with m.If(~reg_de00[2]):
+          m.d.comb += [self.o_exrom.eq(reg_de00[1]), self.o_game.eq(~reg_de00[0])]
+          with m.If(self.i_io1 & self.i_we & (self.i_addr[0:8] == 0x00)):
+            m.d.sync += reg_de00.eq(self.i_data)
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[3:5]))
+
+        with m.If(reg_de00[5] & self.i_roml):
+          m.d.comb += [self.o_mem_addr.eq(0x10000 + self.i_addr[0:13]), self.o_mem_we.eq(self.i_we)]
+        with m.If(self.i_io2): #reg_de00[5] &
+          m.d.comb += [self.o_mem_addr.eq(0x11f00 + self.i_addr[0:8]), self.o_mem_we.eq(self.i_we)]
+
+    return m
+
+
 
 class MyC64(Elaboratable):
   def __init__(self):
@@ -53,17 +127,18 @@ class MyC64(Elaboratable):
     self.i_iec_clock_in = Signal()
     self.o_iec_clock_out = Signal()
 
-    self.i_cart_exrom = Signal()
-    self.i_cart_game = Signal()
+    self.i_cart_type = Signal(2)
     self.o_cart_addr = Signal(21)
+    self.o_cart_we = Signal()
     self.i_cart_data = Signal(8)
+    self.o_cart_data = Signal(8)
 
     self.ports = [
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
         self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
         self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
-        self.i_cart_exrom, self.i_cart_game, self.o_cart_addr, self.i_cart_data
+        self.i_cart_type, self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data
     ]
 
   def elaborate(self, platform):
@@ -99,6 +174,9 @@ class MyC64(Elaboratable):
     # CIA-2.
     m.submodules.u_cia2 = u_cia2 = Cia()
 
+    # Cartridge.
+    m.submodules.u_cart = u_cart = Cartridge()
+
     # Color RAM.
     u_ram_color = Memory(width=4, depth=pow(2, 10))
     u_ram_color_rp = u_ram_color.read_port()
@@ -133,11 +211,21 @@ class MyC64(Elaboratable):
         u_ram_color_wp.en.eq(color_cs & bus_we)
     ]
 
-    cart_bank_de00 = Signal(8)
-    m.d.comb += self.o_cart_addr.eq(Cat(bus_addr[0:13], cart_bank_de00))
+    m.d.comb += [
+        u_cart.i_cart_type.eq(self.i_cart_type),
+        u_cart.i_addr.eq(bus_addr),
+        u_cart.i_data.eq(bus_do),
+        u_cart.i_we.eq(bus_we),
+        self.o_cart_addr.eq(u_cart.o_mem_addr),
+        u_cart.i_mem_data.eq(self.i_cart_data),
+        self.o_cart_data.eq(u_cart.o_mem_data),
+        self.o_cart_we.eq(u_cart.o_mem_we),
+    ]
 
     # Bank switching - following the table from
     # https://www.c64-wiki.com/wiki/Bank_Switching
+    mode_bits = Signal(5)
+    m.d.comb += mode_bits.eq(Cat(cpu_po[0:3], u_cart.o_game, u_cart.o_exrom))
     m.d.comb += [
         cpu_di.eq(0),
         ram_cs.eq(0),
@@ -153,54 +241,68 @@ class MyC64(Elaboratable):
       m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     #RAM or is unmapped
     with m.Elif((0x1000 <= cpu_addr) & (cpu_addr <= 0x7FFF)):
-      m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+      with m.If(mode_bits[3:5] != 0b10):
+        m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM or cartridge ROM
     with m.Elif((0x8000 <= cpu_addr) & (cpu_addr <= 0x9FFF)):
-      m.d.comb += ram_cs.eq(1)
-      with m.If((self.i_cart_exrom == 0b0) & (self.i_cart_game == 0b1) & ~cart_bank_de00[7]):
-        m.d.comb += [cpu_di.eq(self.i_cart_data)]
-      with m.Else():
-        m.d.comb += [cpu_di.eq(self.i_ram_main_data)]
+      with m.Switch(mode_bits):
+        with m.Case('10---'):
+          m.d.comb += [u_cart.i_roml.eq(1), cpu_di.eq(u_cart.o_data)]
+        with m.Case('01111', '01011', '00111', '00011'):
+          m.d.comb += [u_cart.i_roml.eq(1), cpu_di.eq(u_cart.o_data), ram_cs.eq(1)]
+        with m.Default():
+          m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM, BASIC interpretor ROM, cartridge ROM or is unmapped
     with m.Elif((0xA000 <= cpu_addr) & (cpu_addr <= 0xBFFF)):
-      with m.If((cpu_po[0:3] == 0b111) | (cpu_po[0:3] == 0b011)):
-        m.d.comb += [cpu_di.eq(self.i_rom_basic_data), ram_cs.eq(1)]
-      with m.Else():
-        m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+      with m.Switch(mode_bits):
+        with m.Case('11111', '11011', '01111', '01011'):
+          m.d.comb += [cpu_di.eq(self.i_rom_basic_data), ram_cs.eq(1)]
+        with m.Case('10---'):
+          pass
+        with m.Case('00111', '00110', '00011', '00010'):
+          m.d.comb += [u_cart.i_romh.eq(1), cpu_di.eq(u_cart.o_data), ram_cs.eq(1)]
+        with m.Default():
+          m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM or is unmapped
     with m.Elif((0xC000 <= cpu_addr) & (cpu_addr <= 0xCFFF)):
-      m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+      with m.If(mode_bits[3:5] != 0b10):
+        m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
     # RAM, Character generator ROM, or I/O registers and Color RAM
     with m.Elif((0xD000 <= cpu_addr) & (cpu_addr <= 0xDFFF)):
-      with m.If((cpu_po[0:3] == 0b111) | (cpu_po[0:3] == 0b110) | (cpu_po[0:3] == 0b101)):
-        # IO
-        with m.If((0xD000 <= cpu_addr) & (cpu_addr <= 0xD3FF)):  # VIC-II
-          m.d.comb += [cpu_di.eq(u_vic.o_reg_data), u_vic.i_reg_cs.eq(~vic_cycle & ~u_vic.o_steal_bus)]
-        with m.Elif((0xD400 <= cpu_addr) & (cpu_addr <= 0xD7FF)):  # SID
-          m.d.comb += [cpu_di.eq(u_sid.o_data), sid_cs.eq(1)]
-        with m.Elif((0xD800 <= cpu_addr) & (cpu_addr <= 0xDBFF)):  # COLOR-RAM
-          m.d.comb += [cpu_di.eq(u_ram_color_rp.data), color_cs.eq(1)]
-        with m.Elif((0xDC00 <= cpu_addr) & (cpu_addr <= 0xDCFF)):  # CIA1
-          m.d.comb += [cpu_di.eq(u_cia1.o_data), cia1_cs.eq(1)]
-        with m.Elif((0xDD00 <= cpu_addr) & (cpu_addr <= 0xDDFF)):  # CIA2
-          m.d.comb += [cpu_di.eq(u_cia2.o_data), cia2_cs.eq(1)]
+      with m.Switch(mode_bits):
+        with m.Case('11111', '-1110', '-1101', '10---', '01111', '00111', '00110', '00101'):
+          # IO
+          with m.If((0xD000 <= cpu_addr) & (cpu_addr <= 0xD3FF)):  # VIC-II
+            m.d.comb += [cpu_di.eq(u_vic.o_reg_data), u_vic.i_reg_cs.eq(~vic_cycle & ~u_vic.o_steal_bus)]
+          with m.Elif((0xD400 <= cpu_addr) & (cpu_addr <= 0xD7FF)):  # SID
+            m.d.comb += [cpu_di.eq(u_sid.o_data), sid_cs.eq(1)]
+          with m.Elif((0xD800 <= cpu_addr) & (cpu_addr <= 0xDBFF)):  # COLOR-RAM
+            m.d.comb += [cpu_di.eq(u_ram_color_rp.data), color_cs.eq(1)]
+          with m.Elif((0xDC00 <= cpu_addr) & (cpu_addr <= 0xDCFF)):  # CIA1
+            m.d.comb += [cpu_di.eq(u_cia1.o_data), cia1_cs.eq(1)]
+          with m.Elif((0xDD00 <= cpu_addr) & (cpu_addr <= 0xDDFF)):  # CIA2
+            m.d.comb += [cpu_di.eq(u_cia2.o_data), cia2_cs.eq(1)]
 
-        # Handle cartridge bank select register $DE00
-        with m.If((cpu_addr == 0xDE00) & cpu_we):
-          m.d.sync += cart_bank_de00.eq(cpu_do)
+          # Handle cartridge IO1/IO2
+          with m.If(cpu_addr[8:16] == 0xDE):
+            m.d.comb += u_cart.i_io1.eq(1)
+          with m.If(cpu_addr[8:16] == 0xDF):
+            m.d.comb += [u_cart.i_io2.eq(1), cpu_di.eq(u_cart.o_data)]
 
-      with m.Elif((cpu_po[0:3] == 0b011) | (cpu_po[0:3] == 0b010) | (cpu_po[0:3] == 0b001)):
-        # CHAR ROM
-        m.d.comb += [cpu_di.eq(self.i_rom_char_data), ram_cs.eq(1)]
-      with m.Else():
-        # RAM
-        m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+        with m.Case('11-00', '0--00', '00001'):
+          m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+        with m.Default():
+          m.d.comb += [cpu_di.eq(self.i_rom_char_data), ram_cs.eq(1)]
+
     # RAM, KERNAL ROM or cartridge ROM
     with m.Elif(0xE000 <= cpu_addr):
-      with m.If((cpu_po[0:3] == 0b111) | (cpu_po[0:3] == 0b110) | (cpu_po[0:3] == 0b011) | (cpu_po[0:3] == 0b010)):
-        m.d.comb += [cpu_di.eq(self.i_rom_kernal_data), ram_cs.eq(1)]
-      with m.Else():
-        m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
+      with m.Switch(mode_bits):
+        with m.Case('11111', '-1110', '11011', '-1010', '01111', '01011', '00111', '00110', '00011', '00010'):
+          m.d.comb += [cpu_di.eq(self.i_rom_kernal_data), ram_cs.eq(1)]
+        with m.Case('10---'):
+          m.d.comb += [u_cart.i_romh.eq(1), cpu_di.eq(u_cart.o_data)]
+        with m.Default():
+          m.d.comb += [cpu_di.eq(self.i_ram_main_data), ram_cs.eq(1)]
 
     #
     #

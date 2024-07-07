@@ -551,10 +551,11 @@ module core_top (
       .o_iec_data_out(iec_c64_data_out),
       .i_iec_clock_in(iec_clock),
       .o_iec_clock_out(iec_c64_clock_out),
-      .i_cart_exrom(c64_ctrl[5]),
-      .i_cart_game(c64_ctrl[6]),
+      .i_cart_type(c64_ctrl[6:5]),
       .o_cart_addr(c64_cart_addr),
-      .i_cart_data(c64_cart_data)
+      .o_cart_we(c64_cart_we),
+      .i_cart_data(c64_cart_idata),
+      .o_cart_data(c64_cart_odata)
   );
 
   wire [15:0] c1541_bus_addr;
@@ -680,19 +681,25 @@ module core_top (
   );
 
   wire [20:0] c64_cart_addr;
-  wire [7:0] c64_cart_data;
+  wire [7:0] c64_cart_idata;
+  wire [7:0] c64_cart_odata;
+  wire c64_cart_we;
   spram #(
+`ifdef __VERILATOR__
+      .aw(21),
+`else
       .aw(17),
+`endif
       .dw(8)
-  ) u_c64_cart_rom (
+  ) u_c64_cart_rom_lo (
       .clk (clk),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
       .addr(ext_rom_cart_we ? ext_addr : c64_cart_addr),
-      .do  (c64_cart_data),
-      .di  (ext_data),
-      .we  (ext_rom_cart_we)
+      .do  (c64_cart_idata),
+      .di  (ext_rom_cart_we ? ext_data : c64_cart_odata),
+      .we  (ext_rom_cart_we | c64_cart_we)
   );
 
   //

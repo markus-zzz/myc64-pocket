@@ -170,6 +170,7 @@ struct VICIIFrameDumper {
   VICIIFrameDumper() {
     m_FramePixBuf =
         gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, c_Xres, c_Yres);
+        gdk_pixbuf_fill(m_FramePixBuf, 0);
   }
   void operator()() {
     if (dut->clk_74a) {
@@ -216,6 +217,25 @@ struct VICIIFrameDumper {
           file.close();
           printf("%s\n", buf);
         }
+
+#if 0
+        // Appropriate FIRE sequences to load up 'A Pig Quest' from EasyFlash
+        dut->cont1_key = 0;
+        if (900 <= m_FrameIdx  && m_FrameIdx < 950) {
+          dut->cont1_key = 0x10;
+        }
+        if (1100 <= m_FrameIdx  && m_FrameIdx < 1150) {
+          dut->cont1_key = 0x10;
+        }
+
+        if (1285 <= m_FrameIdx  && m_FrameIdx < 1325) {
+          dut->cont1_key = 0x10;
+        }
+
+        if (1500 <= m_FrameIdx  && m_FrameIdx < 1550) {
+          dut->cont1_key = 0x10;
+        }
+#endif
 
         // Handle key injection
         enum class KeyState { Idle, Press, Release };
