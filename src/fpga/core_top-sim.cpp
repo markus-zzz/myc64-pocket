@@ -46,6 +46,9 @@
 #define PRG_SLOT_ID 1
 #define G64_SLOT_ID 2
 
+using Memory = std::array<uint8_t, 0x10000>;
+unsigned disasm(FILE *fp, const Memory &mem, uint16_t addr);
+
 static unsigned trace_begin_frame = 0;
 static std::string iec_trace_path;
 static unsigned iec_trace_begin_frame = 0;
@@ -56,6 +59,8 @@ static std::string crt_path;
 static bool dump_video = false;
 static bool dump_ram = false;
 static unsigned exit_frame = 0;
+static std::string cpu_c64_trace_path;
+static FILE *cpu_c64_trace_fp = nullptr;
 
 static std::unique_ptr<Vcore_top> dut;
 
@@ -170,7 +175,7 @@ struct VICIIFrameDumper {
   VICIIFrameDumper() {
     m_FramePixBuf =
         gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, c_Xres, c_Yres);
-        gdk_pixbuf_fill(m_FramePixBuf, 0);
+    gdk_pixbuf_fill(m_FramePixBuf, 0);
   }
   void operator()() {
     if (dut->clk_74a) {
@@ -216,6 +221,11 @@ struct VICIIFrameDumper {
           file.write(reinterpret_cast<char *>(ram), 0x10000);
           file.close();
           printf("%s\n", buf);
+        }
+
+        dut->cont1_key = 0;
+        if (1000 <= m_FrameIdx && m_FrameIdx < 1100) {
+          dut->cont1_key = 0x10;
         }
 
 #if 0
@@ -283,10 +293,37 @@ struct VICIIFrameDumper {
         m_FrameIdx++;
       }
 
-      if (!iec_trace_path.empty() && m_FrameIdx >= iec_trace_begin_frame &&
+      if (iec_trace_fp && m_FrameIdx >= iec_trace_begin_frame &&
           dut->debug_1mhz_ph1_en) {
         fprintf(iec_trace_fp, "%d,%d,%d\n", dut->debug_iec_atn,
                 dut->debug_iec_clock, dut->debug_iec_data);
+      }
+
+      if (cpu_c64_trace_fp && dut->debug_c64_cpu_valid) {
+        mem_c64[dut->debug_c64_cpu_addr] = dut->debug_c64_cpu_data;
+        if (dut->debug_c64_cpu_sync) {
+          auto pos = disasm(cpu_c64_trace_fp, mem_c64, prev_sync_addr);
+          prev_sync_addr = dut->debug_c64_cpu_addr;
+          while (pos++ < 40)
+            putc(' ', cpu_c64_trace_fp);
+          uint8_t reg_a = dut->debug_c64_cpu_regs;
+          uint8_t reg_x = dut->debug_c64_cpu_regs >> 8;
+          uint8_t reg_y = dut->debug_c64_cpu_regs >> 16;
+          uint8_t reg_p = dut->debug_c64_cpu_regs >> 24;
+          uint8_t reg_sp = dut->debug_c64_cpu_regs >> 32;
+          uint16_t reg_pc = dut->debug_c64_cpu_regs >> 48;
+          fprintf(cpu_c64_trace_fp, "[A:$%02X X:$%02X Y:$%02X SP:$%02X ", reg_a,
+                  reg_x, reg_y, reg_sp);
+
+          fprintf(cpu_c64_trace_fp, " SR:%c%c-%c%c%c%c%c] ",
+                  reg_p & 0x80 ? 'N' : '-', reg_p & 0x40 ? 'V' : '-',
+                  reg_p & 0x10 ? 'B' : '-', reg_p & 0x08 ? 'D' : '-',
+                  reg_p & 0x04 ? 'I' : '-', reg_p & 0x02 ? 'Z' : '-',
+                  reg_p & 0x01 ? 'C' : '-');
+
+          fprintf(cpu_c64_trace_fp, "[F:%u C:%lu]\n", m_FrameIdx,
+                  CM.CurrTimePS());
+        }
       }
     }
   }
@@ -430,6 +467,9 @@ private:
 
   unsigned cntr = 0;
   decltype(dataslots)::iterator ds_it;
+
+  Memory mem_c64;
+  uint16_t prev_sync_addr;
 };
 
 double sc_time_stamp() { return CM.CurrTimePS(); }
@@ -460,6 +500,8 @@ int main(int argc, char *argv[]) {
   app.add_option("--keys", keys_str,
                  "Key input string of the form '[150]10 PRINT<LSHIFT>2HELLO "
                  "WORLD<LSHIFT>2<RET>20 GOTO 10<RET>RUN<RET>'");
+  app.add_option("--cpu-c64-trace", cpu_c64_trace_path,
+                 "Enable instruction trace for the C64 6510 CPU");
   CLI11_PARSE(app, argc, argv);
 
   // Initialize Verilators variables
@@ -546,6 +588,10 @@ int main(int argc, char *argv[]) {
   if (!iec_trace_path.empty()) {
     iec_trace_fp = fopen(iec_trace_path.c_str(), "w");
     fprintf(iec_trace_fp, "atn,clk,dat\n");
+  }
+
+  if (!cpu_c64_trace_path.empty()) {
+    cpu_c64_trace_fp = fopen(cpu_c64_trace_path.c_str(), "w");
   }
 
   VICIIFrameDumper myVICIIFrameDumper;
