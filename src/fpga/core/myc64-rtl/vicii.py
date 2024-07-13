@@ -232,9 +232,10 @@ class VicII(Elaboratable):
 
     # Raster IRQ
     with m.If(self.clk_8mhz_en):
-      with m.If(
-          (cycle == 0) & (raster == raster_irq)
-      ):  # XXX: should we check the corresponding interrupt enable bit here or is it just for the final IRQ gen?
+      # XXX: Should be cycle 0 but for some reason 'raster' increments directly
+      # after cycle 0 so that would result in the interrupt being delayed one
+      # raster line.
+      with m.If((cycle == 1) & (raster == raster_irq)):
         m.d.sync += irq[0].eq(1)
 
     m.d.comb += [bad_line_cond.eq((raster >= 0x30) & (raster <= 0xf7) & (y[0:3] == r_d011[0:3]))]
