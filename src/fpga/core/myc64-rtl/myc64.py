@@ -101,6 +101,9 @@ class Cartridge(Elaboratable):
 
 class MyC64(Elaboratable):
   def __init__(self):
+    self.i_clk_1mhz_ph1_en = Signal()
+    self.i_clk_1mhz_ph2_en = Signal()
+
     self.o_vid_rgb = Signal(24)
     self.o_vid_hsync = Signal()
     self.o_vid_vsync = Signal()
@@ -118,9 +121,6 @@ class MyC64(Elaboratable):
     self.o_ram_main_data = Signal(8)
     self.o_ram_main_we = Signal()
 
-    self.o_clk_1mhz_ph1_en = Signal()
-    self.o_clk_1mhz_ph2_en = Signal()
-
     self.o_iec_atn_out = Signal()
     self.i_iec_data_in = Signal()
     self.o_iec_data_out = Signal()
@@ -134,9 +134,10 @@ class MyC64(Elaboratable):
     self.o_cart_data = Signal(8)
 
     self.ports = [
+        self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en,
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
-        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we, self.o_clk_1mhz_ph1_en, self.o_clk_1mhz_ph2_en,
+        self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we,
         self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
         self.i_cart_type, self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data
     ]
@@ -144,19 +145,10 @@ class MyC64(Elaboratable):
   def elaborate(self, platform):
     m = Module()
 
-    # XXX: The system is sensitive to which clk_1mhz_ph?_en comes first
-    # after reset.
-    clk_cntr = Signal(3, reset=0b101)
-    m.d.sync += clk_cntr.eq(clk_cntr + 1)
-
-    clk_1mhz_ph1_en = Signal()
-    clk_1mhz_ph2_en = Signal()
-    m.d.comb += [clk_1mhz_ph1_en.eq(clk_cntr == 0b000), clk_1mhz_ph2_en.eq(clk_cntr == 0b100)]
-
     vic_cycle = Signal()
-    with m.If(clk_1mhz_ph1_en):
+    with m.If(self.i_clk_1mhz_ph1_en):
       m.d.sync += vic_cycle.eq(0)
-    with m.Elif(clk_1mhz_ph2_en):
+    with m.Elif(self.i_clk_1mhz_ph2_en):
       m.d.sync += vic_cycle.eq(1)
 
     # 6510 CPU.
@@ -201,7 +193,7 @@ class MyC64(Elaboratable):
     bus_di = Signal(8)
     bus_do = Signal(8)
 
-    m.d.comb += [self.o_bus_addr.eq(bus_addr), self.o_clk_1mhz_ph1_en.eq(clk_1mhz_ph1_en), self.o_clk_1mhz_ph2_en.eq(clk_1mhz_ph2_en)]
+    m.d.comb += [self.o_bus_addr.eq(bus_addr)]
     m.d.comb += [
         u_ram_color_rp.addr.eq(bus_addr),
         u_ram_color_wp.addr.eq(bus_addr),
@@ -315,24 +307,24 @@ class MyC64(Elaboratable):
         cpu_we.eq(u_cpu.o_we),
         cpu_do.eq(u_cpu.o_data),
         cpu_po.eq(u_cpu.o_port),
-        u_cpu.clk_1mhz_ph1_en.eq(clk_1mhz_ph1_en),
-        u_cpu.clk_1mhz_ph2_en.eq(clk_1mhz_ph2_en),
+        u_cpu.clk_1mhz_ph1_en.eq(self.i_clk_1mhz_ph1_en),
+        u_cpu.clk_1mhz_ph2_en.eq(self.i_clk_1mhz_ph2_en),
         u_cpu.i_stun.eq(u_vic.o_steal_bus),
         # VIC-II
         u_vic.clk_8mhz_en.eq(1),
-        u_vic.clk_1mhz_ph1_en.eq(clk_1mhz_ph1_en),
-        u_vic.clk_1mhz_ph2_en.eq(clk_1mhz_ph2_en),
+        u_vic.clk_1mhz_ph1_en.eq(self.i_clk_1mhz_ph1_en),
+        u_vic.clk_1mhz_ph2_en.eq(self.i_clk_1mhz_ph2_en),
         u_vic.i_reg_addr.eq(bus_addr),
         u_vic.i_reg_data.eq(bus_do),
         u_vic.i_reg_we.eq(bus_we),
         # SID
-        u_sid.clk_1mhz_ph1_en.eq(clk_1mhz_ph2_en),
+        u_sid.clk_1mhz_ph1_en.eq(self.i_clk_1mhz_ph2_en),
         u_sid.i_cs.eq(sid_cs),
         u_sid.i_addr.eq(bus_addr),
         u_sid.i_data.eq(bus_do),
         u_sid.i_we.eq(bus_we),
         # CIA-1
-        u_cia1.clk_1mhz_ph_en.eq(clk_1mhz_ph2_en),
+        u_cia1.clk_1mhz_ph_en.eq(self.i_clk_1mhz_ph2_en),
         u_cia1.i_cs.eq(cia1_cs),
         u_cia1.i_addr.eq(bus_addr),
         u_cia1.i_we.eq(bus_we),
@@ -340,7 +332,7 @@ class MyC64(Elaboratable):
         u_cia1.i_pa.eq(0xff),
         u_cia1.i_pb.eq(0xff),
         # CIA-2
-        u_cia2.clk_1mhz_ph_en.eq(clk_1mhz_ph2_en),
+        u_cia2.clk_1mhz_ph_en.eq(self.i_clk_1mhz_ph2_en),
         u_cia2.i_cs.eq(cia2_cs),
         u_cia2.i_addr.eq(bus_addr),
         u_cia2.i_we.eq(bus_we),

@@ -370,6 +370,27 @@ module core_top (
       .o_cpu_rdata(bridge_rdata)
   );
 
+  //
+  // Generate clk_1mhz_ph1_en and clk_1mhz_ph2_en clock enable pulses
+  //
+
+  reg [2:0] clk_8mhz_cntr;
+  always @(posedge clk_8mhz) begin
+    if (rst) clk_8mhz_cntr <= 0;
+    else clk_8mhz_cntr <= clk_8mhz_cntr + 1;
+  end
+  wire clk_1mhz_ph1_en;
+  wire clk_1mhz_ph2_en;
+  assign clk_1mhz_ph1_en = (clk_8mhz_cntr == 3'b000);
+  assign clk_1mhz_ph2_en = (clk_8mhz_cntr == 3'b100);
+
+  // Synchronize reset used by C64 and C1541 so that first phase seen after
+  // reset is ph1
+  reg ph_synced_rst;
+  always @(posedge clk_8mhz) begin
+    if (rst) ph_synced_rst <= 1;
+    else if (clk_1mhz_ph2_en) ph_synced_rst <= ~c64_ctrl[0];
+  end
 
   //
   // audio i2s silence generator
@@ -522,13 +543,15 @@ module core_top (
     assign debug_iec_atn = iec_atn;
     assign debug_iec_data = iec_data;
     assign debug_iec_clock = iec_clock;
-    assign debug_1mhz_ph1_en = c64_clk_1mhz_ph1_en;
-    assign debug_1mhz_ph2_en = c64_clk_1mhz_ph2_en;
+    assign debug_1mhz_ph1_en = clk_1mhz_ph1_en;
+    assign debug_1mhz_ph2_en = clk_1mhz_ph2_en;
 `endif
 
   myc64_top u_myc64 (
-      .rst(~c64_ctrl[0]),
+      .rst(ph_synced_rst),
       .clk(clk_8mhz),
+      .i_clk_1mhz_ph1_en(clk_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(clk_1mhz_ph2_en),
       .o_vid_rgb(c64_color_rgb),
       .o_vid_hsync(video_hs),
       .o_vid_vsync(video_vs),
@@ -544,8 +567,6 @@ module core_top (
       .i_ram_main_data(c64_ram_rdata),
       .o_ram_main_data(c64_ram_wdata),
       .o_ram_main_we(c64_ram_we),
-      .o_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
-      .o_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
       .o_iec_atn_out(iec_atn),
       .i_iec_data_in(iec_data),
       .o_iec_data_out(iec_c64_data_out),
@@ -571,8 +592,10 @@ module core_top (
   wire c1541_motor_on;
 
   my1541_top u_my1541 (
-      .rst(~c64_ctrl[0]),
+      .rst(ph_synced_rst),
       .clk(clk_8mhz),
+      .i_clk_1mhz_ph1_en(clk_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(clk_1mhz_ph2_en),
       .o_addr(c1541_bus_addr),
       .i_ram_data(c1541_ram_rdata),
       .o_ram_data(c1541_ram_wdata),
@@ -584,8 +607,6 @@ module core_top (
       .o_track_no(c1541_track_no),
       .o_led_on(c1541_led_on),
       .o_motor_on(c1541_motor_on),
-      .i_clk_1mhz_ph1_en(c64_clk_1mhz_ph1_en),
-      .i_clk_1mhz_ph2_en(c64_clk_1mhz_ph2_en),
       .i_iec_atn_in(iec_atn),
       .i_iec_data_in(iec_data),
       .o_iec_data_out(iec_1541_data_out),
@@ -601,18 +622,15 @@ module core_top (
   reg ext_ram_we_r;
   wire ext_ram_ready;
 
-  wire c64_clk_1mhz_ph1_en;
-  wire c64_clk_1mhz_ph2_en;
-
-  assign ext_ram_ready = ext_ram_we_r & c64_clk_1mhz_ph1_en;
+  assign ext_ram_ready = ext_ram_we_r & clk_1mhz_ph1_en;
 
   // For better or worse the memory signals need to be stable for an entire ph2
   // cycle.
   always @(posedge clk_8mhz) begin
-    if (c64_clk_1mhz_ph2_en) begin
+    if (clk_1mhz_ph2_en) begin
       ext_ram_we_r <= ext_ram_we;
     end
-    else if (c64_clk_1mhz_ph1_en) begin
+    else if (clk_1mhz_ph1_en) begin
       ext_ram_we_r <= 0;
     end
   end
