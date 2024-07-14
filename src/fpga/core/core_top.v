@@ -360,7 +360,7 @@ module core_top (
 
       .osnotify_inmenu(osnotify_inmenu),
 
-      .i_cpu_clk(clk),
+      .i_cpu_clk(clk_8mhz),
       .i_cpu_req(cpu_mem_valid && cpu_mem_addr[31:28] == 4'h4),
       .o_cpu_ack_pulse(bridge_ack_pulse),
 
@@ -423,8 +423,8 @@ module core_top (
   ///////////////////////////////////////////////
 
 
-  wire clk_core_12288;
-  wire clk_core_12288_90deg;
+  wire clk_8mhz;
+  wire clk_8mhz_90deg;
   wire pll_core_locked;
 
 `ifndef __VERILATOR__
@@ -432,14 +432,14 @@ module core_top (
       .refclk(clk_74a),
       .rst   (0),
 
-      .outclk_0(clk_core_12288),
-      .outclk_1(clk_core_12288_90deg),
+      .outclk_0(clk_8mhz),
+      .outclk_1(clk_8mhz_90deg),
 
       .locked(pll_core_locked)
   );
 `else
-  assign clk_core_12288 = clk_74a;
-  assign clk_core_12288_90deg = clk_74a;
+  assign clk_8mhz = clk_74a;
+  assign clk_8mhz_90deg = clk_74a;
   assign pll_core_locked = 1;
 `endif
 
@@ -457,18 +457,18 @@ module core_top (
   wire [15:0] cont2_trig_s;
   wire [15:0] cont3_trig_s;
   wire [15:0] cont4_trig_s;
-  synch_3 #(.WIDTH(32)) s_cont1_key (cont1_key, cont1_key_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont2_key (cont2_key, cont2_key_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont3_key (cont3_key, cont3_key_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont4_key (cont4_key, cont4_key_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont1_joy (cont1_joy, cont1_joy_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont2_joy (cont2_joy, cont2_joy_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont3_joy (cont3_joy, cont3_joy_s, video_rgb_clock);
-  synch_3 #(.WIDTH(32)) s_cont4_joy (cont4_joy, cont4_joy_s, video_rgb_clock);
-  synch_3 #(.WIDTH(16)) s_cont1_trig (cont1_trig, cont1_trig_s, video_rgb_clock);
-  synch_3 #(.WIDTH(16)) s_cont2_trig (cont2_trig, cont2_trig_s, video_rgb_clock);
-  synch_3 #(.WIDTH(16)) s_cont3_trig (cont3_trig, cont3_trig_s, video_rgb_clock);
-  synch_3 #(.WIDTH(16)) s_cont4_trig (cont4_trig, cont4_trig_s, video_rgb_clock);
+  synch_3 #(.WIDTH(32)) s_cont1_key (cont1_key, cont1_key_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont2_key (cont2_key, cont2_key_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont3_key (cont3_key, cont3_key_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont4_key (cont4_key, cont4_key_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont1_joy (cont1_joy, cont1_joy_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont2_joy (cont2_joy, cont2_joy_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont3_joy (cont3_joy, cont3_joy_s, clk_8mhz);
+  synch_3 #(.WIDTH(32)) s_cont4_joy (cont4_joy, cont4_joy_s, clk_8mhz);
+  synch_3 #(.WIDTH(16)) s_cont1_trig (cont1_trig, cont1_trig_s, clk_8mhz);
+  synch_3 #(.WIDTH(16)) s_cont2_trig (cont2_trig, cont2_trig_s, clk_8mhz);
+  synch_3 #(.WIDTH(16)) s_cont3_trig (cont3_trig, cont3_trig_s, clk_8mhz);
+  synch_3 #(.WIDTH(16)) s_cont4_trig (cont4_trig, cont4_trig_s, clk_8mhz);
 
   wire [23:0] c64_color_rgb;
   wire [15:0] sid_wave;
@@ -528,7 +528,7 @@ module core_top (
 
   myc64_top u_myc64 (
       .rst(~c64_ctrl[0]),
-      .clk(video_rgb_clock),
+      .clk(clk_8mhz),
       .o_vid_rgb(c64_color_rgb),
       .o_vid_hsync(video_hs),
       .o_vid_vsync(video_vs),
@@ -572,7 +572,7 @@ module core_top (
 
   my1541_top u_my1541 (
       .rst(~c64_ctrl[0]),
-      .clk(video_rgb_clock),
+      .clk(clk_8mhz),
       .o_addr(c1541_bus_addr),
       .i_ram_data(c1541_ram_rdata),
       .o_ram_data(c1541_ram_wdata),
@@ -608,7 +608,7 @@ module core_top (
 
   // For better or worse the memory signals need to be stable for an entire ph2
   // cycle.
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (c64_clk_1mhz_ph2_en) begin
       ext_ram_we_r <= ext_ram_we;
     end
@@ -625,7 +625,7 @@ module core_top (
       .aw(16),
       .dw(8)
   ) u_c64_main_ram (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -640,7 +640,7 @@ module core_top (
       .aw(12),
       .dw(8)
   ) u_c64_char_rom (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -655,7 +655,7 @@ module core_top (
       .aw(13),
       .dw(8)
   ) u_c64_basic_rom (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -670,7 +670,7 @@ module core_top (
       .aw(13),
       .dw(8)
   ) u_c64_kernal_rom (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -692,7 +692,7 @@ module core_top (
 `endif
       .dw(8)
   ) u_c64_cart_rom_lo (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -709,7 +709,7 @@ module core_top (
       .aw(11),
       .dw(8)
   ) u_c1541_ram (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -723,7 +723,7 @@ module core_top (
       .aw(14),
       .dw(8)
   ) u_c1541_rom (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (1'b1),
       .oe  (1'b1),
@@ -825,7 +825,7 @@ module core_top (
   end
 
   reg [1:0] osd_ctrl;
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (rst) osd_ctrl <= 0;
     else if (cpu_mem_addr == 32'h30000000 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
       osd_ctrl <= cpu_mem_wdata;
@@ -833,7 +833,7 @@ module core_top (
 
   reg [6:0] c64_ctrl;
   reg [12:0] c1541_track_len;
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
       c64_ctrl <= cpu_mem_wdata[6:0];
@@ -844,7 +844,7 @@ module core_top (
   end
 
   reg [63:0] keyboard_mask;
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (rst) keyboard_mask <= 0;
     else if (cpu_mem_addr == 32'h30000004 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
       keyboard_mask[31:0] <= cpu_mem_wdata;
@@ -852,12 +852,11 @@ module core_top (
       keyboard_mask[63:32] <= cpu_mem_wdata;
   end
 
-  wire clk, rst;
+  wire rst;
   wire bridge_ack_pulse;
-  assign clk = video_rgb_clock;
   assign rst = ~reset_n;
 
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (rst) cpu_mem_ready <= 0;
     else begin
       casex (cpu_mem_addr)
@@ -881,7 +880,7 @@ module core_top (
       .dw(32),
       .MEM_INIT_FILE("bios.vh")
   ) u_rom (
-      .clk (clk),
+      .clk (clk_8mhz),
       .rst (rst),
       .ce  (cpu_mem_valid && cpu_mem_addr[31:28] == 4'h0),
       .oe  (1'b1),
@@ -889,7 +888,7 @@ module core_top (
       .do  (rom_rdata)
   );
 
-  // RAM - shared between CPU and USB. USB has priority.
+  // RAM - shared between CPU and OSD. OSD has priority.
   genvar gi;
   generate
     for (gi = 0; gi < 4; gi = gi + 1) begin : ram
@@ -897,7 +896,7 @@ module core_top (
           .aw(10),
           .dw(8)
       ) u_ram (
-          .clk (clk),
+          .clk (clk_8mhz),
           .rst (rst),
           .ce  (osd_ram_access || (cpu_mem_valid && cpu_mem_addr[31:28] == 4'h1)),
           .oe  (1'b1),
@@ -915,7 +914,7 @@ module core_top (
       .ENABLE_MUL(1),
       .ENABLE_DIV(1)
   ) u_cpu (
-      .clk(clk),
+      .clk(clk_8mhz),
       .resetn(~rst),
       .mem_valid(cpu_mem_valid),
       .mem_instr(cpu_mem_instr),
@@ -933,7 +932,7 @@ module core_top (
   reg [8:0] osd_x;
   reg [8:0] osd_y;
 
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (video_vs) begin
       osd_y <= 0;
     end else if (video_hs) begin
@@ -956,7 +955,7 @@ module core_top (
 
   reg [9:0] osd_mem_addr_p;
   reg osd_ram_access_p;
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     osd_mem_addr_p   <= osd_mem_addr;
     osd_ram_access_p <= osd_ram_access;
   end
@@ -970,7 +969,7 @@ module core_top (
     endcase
   end
 
-  always @(posedge clk) begin
+  always @(posedge clk_8mhz) begin
     if (osd_ram_access_p) osd_pixshift <= osd_mem_rdata;
     else osd_pixshift <= {osd_pixshift[6:0], 1'b0};
   end
@@ -978,8 +977,8 @@ module core_top (
   wire [23:0] osd_rgb;
   assign osd_rgb = osd_pixshift[7] ? 24'hff_ff_ff : 24'h30_40_50;
 
-  assign video_rgb_clock = clk_core_12288;
-  assign video_rgb_clock_90 = clk_core_12288_90deg;
+  assign video_rgb_clock = clk_8mhz;
+  assign video_rgb_clock_90 = clk_8mhz_90deg;
   assign video_rgb = video_de ? (osd_active ? osd_rgb : c64_color_rgb) : 0;
   assign video_skip = 0;
 
@@ -992,7 +991,7 @@ module core_top (
       }),
       .a_dout(  /* NC */),
 
-      .b_clk (clk),
+      .b_clk (clk_8mhz),
       .b_wr  (1'b0),
       .b_addr(cpu_mem_addr[31:2]),
       .b_din (32'h0),
@@ -1011,7 +1010,7 @@ module core_top (
       .a_din (bridge_wr_data),
       .a_dout(dataslot_table_rd_data),
 
-      .b_clk (clk),
+      .b_clk (clk_8mhz),
       .b_wr  (1'b0),
       .b_addr(cpu_mem_addr[31:2]),
       .b_din (32'h0),
@@ -1031,7 +1030,7 @@ module core_top (
       }),
       .a_dout(  /* NC */),
 
-      .b_clk (clk),
+      .b_clk (clk_8mhz),
       .b_wr  (1'b0),
       .b_addr(c1541_track_mem_addr),
       .b_din (32'h0),
