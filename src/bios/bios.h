@@ -26,6 +26,8 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define BRIDGE_DPRAM_SIZE 1024
+
 #define CRT_SLOT_ID 0
 #define PRG_SLOT_ID 1
 #define G64_SLOT_ID 2

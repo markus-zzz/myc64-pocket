@@ -70,7 +70,7 @@ static void load_prg(uint16_t slot_id) {
 
   volatile uint8_t *q = &RAM[PrgStartAddr];
 
-  const uint32_t buf_size = 256;
+  const uint32_t buf_size = BRIDGE_DPRAM_SIZE;
   uint32_t slot_offset = 2;
   uint32_t idx = 0;
 

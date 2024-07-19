@@ -24,6 +24,7 @@ module core_top (
     output wire debug_iec_clock,
     output wire debug_1mhz_ph1_en,
     output wire debug_1mhz_ph2_en,
+    input wire clk_32mhz,
 `endif
 
     ///////////////////////////////////////////////////
@@ -267,18 +268,6 @@ module core_top (
   assign port_tran_sd_dir        = 1'b0;  // SD is input and not used
 
   // tie off the rest of the pins we are not using
-  assign cram0_a                 = 'h0;
-  assign cram0_dq                = {16{1'bZ}};
-  assign cram0_clk               = 0;
-  assign cram0_adv_n             = 1;
-  assign cram0_cre               = 0;
-  assign cram0_ce0_n             = 1;
-  assign cram0_ce1_n             = 1;
-  assign cram0_oe_n              = 1;
-  assign cram0_we_n              = 1;
-  assign cram0_ub_n              = 1;
-  assign cram0_lb_n              = 1;
-
   assign cram1_a                 = 'h0;
   assign cram1_dq                = {16{1'bZ}};
   assign cram1_clk               = 0;
@@ -371,7 +360,7 @@ module core_top (
   );
 
   //
-  // Generate clk_1mhz_ph1_en and clk_1mhz_ph2_en clock enable pulses
+  // Generate clk_8mhz_1mhz_ph1_en and clk_8mhz_1mhz_ph2_en clock enable pulses
   //
 
   reg [2:0] clk_8mhz_cntr;
@@ -379,17 +368,17 @@ module core_top (
     if (rst) clk_8mhz_cntr <= 0;
     else clk_8mhz_cntr <= clk_8mhz_cntr + 1;
   end
-  wire clk_1mhz_ph1_en;
-  wire clk_1mhz_ph2_en;
-  assign clk_1mhz_ph1_en = (clk_8mhz_cntr == 3'b000);
-  assign clk_1mhz_ph2_en = (clk_8mhz_cntr == 3'b100);
+  wire clk_8mhz_1mhz_ph1_en;
+  wire clk_8mhz_1mhz_ph2_en;
+  assign clk_8mhz_1mhz_ph1_en = (clk_8mhz_cntr == 3'b000);
+  assign clk_8mhz_1mhz_ph2_en = (clk_8mhz_cntr == 3'b100);
 
   // Synchronize reset used by C64 and C1541 so that first phase seen after
   // reset is ph1
   reg ph_synced_rst;
   always @(posedge clk_8mhz) begin
     if (rst) ph_synced_rst <= 1;
-    else if (clk_1mhz_ph2_en) ph_synced_rst <= ~c64_ctrl[0];
+    else if (clk_8mhz_1mhz_ph2_en) ph_synced_rst <= ~c64_ctrl[0];
   end
 
   //
@@ -449,12 +438,14 @@ module core_top (
   wire pll_core_locked;
 
 `ifndef __VERILATOR__
+  wire clk_32mhz;
   mf_pllbase mp1 (
       .refclk(clk_74a),
       .rst   (0),
 
       .outclk_0(clk_8mhz),
       .outclk_1(clk_8mhz_90deg),
+      .outclk_2(clk_32mhz),
 
       .locked(pll_core_locked)
   );
@@ -543,15 +534,15 @@ module core_top (
     assign debug_iec_atn = iec_atn;
     assign debug_iec_data = iec_data;
     assign debug_iec_clock = iec_clock;
-    assign debug_1mhz_ph1_en = clk_1mhz_ph1_en;
-    assign debug_1mhz_ph2_en = clk_1mhz_ph2_en;
+    assign debug_1mhz_ph1_en = clk_8mhz_1mhz_ph1_en;
+    assign debug_1mhz_ph2_en = clk_8mhz_1mhz_ph2_en;
 `endif
 
   myc64_top u_myc64 (
       .rst(ph_synced_rst),
       .clk(clk_8mhz),
-      .i_clk_1mhz_ph1_en(clk_1mhz_ph1_en),
-      .i_clk_1mhz_ph2_en(clk_1mhz_ph2_en),
+      .i_clk_1mhz_ph1_en(clk_8mhz_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(clk_8mhz_1mhz_ph2_en),
       .o_vid_rgb(c64_color_rgb),
       .o_vid_hsync(video_hs),
       .o_vid_vsync(video_vs),
@@ -594,8 +585,8 @@ module core_top (
   my1541_top u_my1541 (
       .rst(ph_synced_rst),
       .clk(clk_8mhz),
-      .i_clk_1mhz_ph1_en(clk_1mhz_ph1_en),
-      .i_clk_1mhz_ph2_en(clk_1mhz_ph2_en),
+      .i_clk_1mhz_ph1_en(clk_8mhz_1mhz_ph1_en),
+      .i_clk_1mhz_ph2_en(clk_8mhz_1mhz_ph2_en),
       .o_addr(c1541_bus_addr),
       .i_ram_data(c1541_ram_rdata),
       .o_ram_data(c1541_ram_wdata),
@@ -622,15 +613,15 @@ module core_top (
   reg ext_ram_we_r;
   wire ext_ram_ready;
 
-  assign ext_ram_ready = ext_ram_we_r & clk_1mhz_ph1_en;
+  assign ext_ram_ready = ext_ram_we_r & clk_8mhz_1mhz_ph1_en;
 
   // For better or worse the memory signals need to be stable for an entire ph2
   // cycle.
   always @(posedge clk_8mhz) begin
-    if (clk_1mhz_ph2_en) begin
+    if (clk_8mhz_1mhz_ph2_en) begin
       ext_ram_we_r <= ext_ram_we;
     end
-    else if (clk_1mhz_ph1_en) begin
+    else if (clk_8mhz_1mhz_ph1_en) begin
       ext_ram_we_r <= 0;
     end
   end
@@ -702,12 +693,9 @@ module core_top (
   wire [7:0] c64_cart_idata;
   wire [7:0] c64_cart_odata;
   wire c64_cart_we;
-  spram #(
 `ifdef __VERILATOR__
+  spram #(
       .aw(21),
-`else
-      .aw(17),
-`endif
       .dw(8)
   ) u_c64_cart_rom_lo (
       .clk (clk_8mhz),
@@ -719,6 +707,60 @@ module core_top (
       .di  (ext_rom_cart_we ? ext_data : c64_cart_odata),
       .we  (ext_rom_cart_we | c64_cart_we)
   );
+
+`else
+
+  // Generate a clock enable signal in the 32MHz domain that is aligned with
+  // the corresponding clk_8mhz_1mhz_ph[12]_en signals in the 8MHz domain.
+  reg [3:0] clk_32mhz_cntr;
+  wire clk_32mhz_1mhz_ph12_en;
+  assign clk_32mhz_1mhz_ph12_en = clk_32mhz_cntr[3:0] == 0;
+  always @(posedge clk_32mhz) begin
+    if (rst) clk_32mhz_cntr <= 13;
+    else clk_32mhz_cntr <= clk_32mhz_cntr + 1;
+  end
+
+  // Then use it to synchronize transactions of the PSRAM controller to the two
+  // phases of the C64 core. Since clk_8mhz and clk_32mhz are 'related
+  // clocks' the tools should take care of the rest (I hope).
+  wire psram_wen;
+  assign psram_wen = clk_32mhz_1mhz_ph12_en & (ext_rom_cart_we | c64_cart_we);
+  wire psram_ren;
+  assign psram_ren = clk_32mhz_1mhz_ph12_en & ~(ext_rom_cart_we | c64_cart_we);
+
+  psram #(
+    .CLOCK_SPEED(32)
+  ) u_psram (
+    .clk(clk_32mhz),
+    .bank_sel(1'b0),
+    .addr(ext_rom_cart_we ? ext_addr : c64_cart_addr),
+    .write_en(psram_wen),
+    .data_in(ext_rom_cart_we ? ext_data : c64_cart_odata),
+    .write_high_byte(1'b0),
+    .write_low_byte(1'b1),
+
+    .read_en(psram_ren),
+    .read_avail(),
+    .data_out(c64_cart_idata),
+
+    .busy(),
+
+    // PSRAM signals
+    .cram_a(cram0_a),
+    .cram_dq(cram0_dq),
+    .cram_wait(cram0_wait),
+    .cram_clk(cram0_clk),
+    .cram_adv_n(cram0_adv_n),
+    .cram_cre(cram0_cre),
+    .cram_ce0_n(cram0_ce0_n),
+    .cram_ce1_n(cram0_ce1_n),
+    .cram_oe_n(cram0_oe_n),
+    .cram_we_n(cram0_we_n),
+    .cram_ub_n(cram0_ub_n),
+    .cram_lb_n(cram0_lb_n)
+  );
+
+`endif
 
   //
   // Memories for My1541
@@ -884,6 +926,7 @@ module core_top (
         32'h3xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h4xxx_xxxx: cpu_mem_ready <= bridge_ack_pulse;
         32'h5000_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid & ext_ram_ready;
+        32'h51xx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid & clk_8mhz_1mhz_ph1_en;
         32'h5xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h7xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
         32'h9xxx_xxxx: cpu_mem_ready <= ~cpu_mem_ready & cpu_mem_valid;
@@ -1000,7 +1043,10 @@ module core_top (
   assign video_rgb = video_de ? (osd_active ? osd_rgb : c64_color_rgb) : 0;
   assign video_skip = 0;
 
-  bram_block_dp u_bridge_dpram (
+  bram_block_dp #(
+      .DATA(32),
+      .ADDR(8) // 1024 bytes in total
+  ) u_bridge_dpram (
       .a_clk(clk_74a),
       .a_wr(bridge_wr && bridge_addr[31:28] == 4'h7),
       .a_addr(bridge_addr[31:2]),

@@ -76,7 +76,7 @@ void load_rom(uint16_t slot_id, volatile uint8_t *dst, uint32_t slot_length) {
   if (!slot_length)
     return;
 
-  const uint32_t buf_size = 256;
+  const uint32_t buf_size = BRIDGE_DPRAM_SIZE;
   uint32_t slot_offset = 0;
 
   while (slot_offset < slot_length) {

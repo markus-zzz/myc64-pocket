@@ -64,7 +64,7 @@ static uint32_t get_ds_uint32(uint16_t slot_id, uint32_t offset) {
 // XXX: Move to common and use elsewhere (same with the previous two)
 static void ds_read(uint16_t slot_id, uint32_t slot_offset, uint32_t length,
                     uint8_t *dst) {
-  const uint32_t buf_size = 256;
+  const uint32_t buf_size = BRIDGE_DPRAM_SIZE;
 
   while (length > 0) {
     uint32_t chunk_size = MIN(length, buf_size);
