@@ -90,11 +90,16 @@ PRGs](https://github.com/markus-zzz/myc64-pocket/wiki/Working-PRGs) that anyone
 
 ### CRT
 
-Currently only the *Magic Desk* cartridge format as defined in the `.crt`
-[format specification](https://ist.uwaterloo.ca/~schepers/formats/CRT.TXT) is
-supported. This is however the format that is used by the `.crt` files in the
-*OneLoad64* games collection (besides a few *Easy Flash* found in
-`AlternativeFormats/EasyFlash`).
+Currently the following cartridge formats are supported
+
+- *Magic Desk* - as defined in the `.crt`
+  [format specification](https://ist.uwaterloo.ca/~schepers/formats/CRT.TXT).
+  This is the main format used by the `.crt` files in the *OneLoad64* games
+  collection. The cartridge is limited to 128KB of storage.
+- *EasyFlash* - as defined in [EasyFlash Programmer’s Guide](http://skoe.de/easyflash/files/devdocs/EasyFlash-ProgRef.pdf).
+  The secondary format used by some of the larger games in the *OneLoad64*
+  collection.  A modern cartridge that can hold up to 1MB of storage. Seemingly
+  the preferred cartridge format for new content.
 
 Select the desired `.crt` file from the **Core Settings->Load & Start CRT**
 browser. The emulated cartridge will be inserted into the system and the C64 is
