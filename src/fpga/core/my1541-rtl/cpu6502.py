@@ -34,6 +34,12 @@ class Cpu6502(Elaboratable):
     self.i_nmi = Signal()  # non-maskable interrupt request
     self.i_so = Signal()
 
+    self.o_debug_valid = Signal()
+    self.o_debug_sync = Signal()
+    self.o_debug_addr = Signal(16)
+    self.o_debug_data = Signal(8)
+    self.o_debug_regs = Signal(64)
+
   def elaborate(self, platform):
     m = Module()
 
@@ -41,9 +47,9 @@ class Cpu6502(Elaboratable):
     rst = ResetSignal('sync')
 
     addr = Signal(24)
-    data_i = Signal(8)
     data_o = Signal(8)
     we_n = Signal()
+    sync = Signal()
 
     data_ir = Signal(8)
     with m.If(self.clk_1mhz_ph2_en):
@@ -63,8 +69,12 @@ class Cpu6502(Elaboratable):
                                    o_R_W_n=we_n,
                                    o_A=addr,
                                    i_DI=data_ir,
-                                   o_DO=data_o)
+                                   o_DO=data_o,
+                                   o_Sync=sync
+                                   #,o_DEBUG_REGS=self.o_debug_regs
+                                   )
 
     m.d.comb += [self.o_addr.eq(addr), self.o_data.eq(data_o), self.o_we.eq(~we_n)]
+    m.d.comb += [self.o_debug_valid.eq(self.clk_1mhz_ph1_en), self.o_debug_sync.eq(sync), self.o_debug_addr.eq(addr), self.o_debug_data.eq(data_ir)]
 
     return m

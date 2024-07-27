@@ -51,6 +51,57 @@ static uint32_t g_frame_idx = 0;
 
 static std::unique_ptr<Vcore_top> dut;
 
+using Memory = std::array<uint8_t, 0x10000>;
+unsigned disasm(FILE *fp, const Memory &mem, uint16_t addr);
+
+class Trace6502 {
+public:
+  Trace6502(const std::string &path, const uint8_t &debug_cpu_valid,
+            const uint8_t &debug_cpu_sync, const uint16_t &debug_cpu_addr,
+            const uint8_t &debug_cpu_data, const uint64_t &debug_cpu_regs)
+      : debug_cpu_valid_(debug_cpu_valid), debug_cpu_sync_(debug_cpu_sync),
+        debug_cpu_addr_(debug_cpu_addr), debug_cpu_data_(debug_cpu_data),
+        debug_cpu_regs_(debug_cpu_regs) {
+    fp_ = fopen(path.c_str(), "w");
+  }
+  void Tick() {
+    if (debug_cpu_valid_) {
+      mem_[debug_cpu_addr_] = debug_cpu_data_;
+      if (debug_cpu_sync_) {
+        auto pos = disasm(fp_, mem_, prev_sync_addr);
+        prev_sync_addr = debug_cpu_addr_;
+        while (pos++ < 40)
+          putc(' ', fp_);
+        uint8_t reg_a = debug_cpu_regs_;
+        uint8_t reg_x = debug_cpu_regs_ >> 8;
+        uint8_t reg_y = debug_cpu_regs_ >> 16;
+        uint8_t reg_p = debug_cpu_regs_ >> 24;
+        uint8_t reg_sp = debug_cpu_regs_ >> 32;
+        uint16_t reg_pc = debug_cpu_regs_ >> 48;
+        fprintf(fp_, "[A:$%02X X:$%02X Y:$%02X SP:$%02X ", reg_a, reg_x, reg_y,
+                reg_sp);
+
+        fprintf(fp_, " SR:%c%c-%c%c%c%c%c] ", reg_p & 0x80 ? 'N' : '-',
+                reg_p & 0x40 ? 'V' : '-', reg_p & 0x10 ? 'B' : '-',
+                reg_p & 0x08 ? 'D' : '-', reg_p & 0x04 ? 'I' : '-',
+                reg_p & 0x02 ? 'Z' : '-', reg_p & 0x01 ? 'C' : '-');
+
+        fprintf(fp_, "[F:%u C:%lu]\n", g_frame_idx, g_ticks);
+      }
+    }
+  }
+
+private:
+  FILE *fp_;
+  Memory mem_;
+  uint16_t prev_sync_addr;
+  const uint8_t &debug_cpu_valid_;
+  const uint8_t &debug_cpu_sync_;
+  const uint16_t &debug_cpu_addr_;
+  const uint8_t &debug_cpu_data_;
+  const uint64_t &debug_cpu_regs_;
+};
+
 class TraceRTL {
 public:
   TraceRTL(const std::string &out_path, const std::vector<std::string> &modules,
@@ -444,6 +495,9 @@ int main(int argc, char *argv[]) {
   std::vector<std::string> trace_modules;
   uint32_t trace_begin_frame = 0;
 
+  std::string cpu_c64_trace_path;
+  std::string cpu_c1541_trace_path;
+
   std::string iec_trace_path;
   uint32_t iec_trace_begin_frame = 0;
 
@@ -467,6 +521,10 @@ int main(int argc, char *argv[]) {
   app.add_option("--iec-trace", iec_trace_path, "IEC trace output to .csv");
   app.add_option("--iec-trace-begin-frame", iec_trace_begin_frame,
                  "Start IEC trace on given frame");
+  app.add_option("--cpu-c64-trace", cpu_c64_trace_path,
+                 "Instruction trace of the C64 6510 CPU to file");
+  app.add_option("--cpu-c1541-trace", cpu_c1541_trace_path,
+                 "Instruction trace of the C1541 6502 CPU to file");
   app.add_option(
       "--keys", keys_str,
       "Key input string of the form "
@@ -511,6 +569,20 @@ int main(int argc, char *argv[]) {
     trace_rtl = std::make_unique<TraceRTL>(trace_path, trace_modules,
                                            trace_begin_frame);
   }
+  std::unique_ptr<Trace6502> trace_cpu_c64;
+  if (!cpu_c64_trace_path.empty()) {
+    trace_cpu_c64 = std::make_unique<Trace6502>(
+        cpu_c64_trace_path, dut->debug_c64_cpu_valid, dut->debug_c64_cpu_sync,
+        dut->debug_c64_cpu_addr, dut->debug_c64_cpu_data,
+        dut->debug_c64_cpu_regs);
+  }
+  std::unique_ptr<Trace6502> trace_cpu_c1541;
+  if (!cpu_c1541_trace_path.empty()) {
+    trace_cpu_c1541 = std::make_unique<Trace6502>(
+        cpu_c1541_trace_path, dut->debug_c1541_cpu_valid,
+        dut->debug_c1541_cpu_sync, dut->debug_c1541_cpu_addr,
+        dut->debug_c1541_cpu_data, dut->debug_c1541_cpu_regs);
+  }
   std::unique_ptr<KeyInject> key_inject;
   if (!keys_str.empty()) {
     key_inject = std::make_unique<KeyInject>(keys_str);
@@ -549,6 +621,13 @@ int main(int argc, char *argv[]) {
         // Frame dumper
         if (framedumper)
           framedumper->Tick();
+        // Trace C64 CPU
+        if (trace_cpu_c64)
+          trace_cpu_c64->Tick();
+        // Trace C1541 CPU
+        if (trace_cpu_c1541)
+          trace_cpu_c1541->Tick();
+        // Trace IEC bus
         if (iec_trace)
           iec_trace->Tick();
         // Frame index increment if vsync comes after all handlers

@@ -133,13 +133,20 @@ class MyC64(Elaboratable):
     self.i_cart_data = Signal(8)
     self.o_cart_data = Signal(8)
 
+    self.o_debug_6510_valid = Signal()
+    self.o_debug_6510_sync = Signal()
+    self.o_debug_6510_addr = Signal(16)
+    self.o_debug_6510_data = Signal(8)
+    self.o_debug_6510_regs = Signal(64)
+
     self.ports = [
         self.i_clk_1mhz_ph1_en, self.i_clk_1mhz_ph2_en,
         self.o_vid_rgb, self.o_vid_hsync, self.o_vid_vsync, self.o_vid_en, self.o_wave, self.i_keyboard_mask, self.i_joystick1, self.i_joystick2,
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
         self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we,
         self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
-        self.i_cart_type, self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data
+        self.i_cart_type, self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data,
+        self.o_debug_6510_valid, self.o_debug_6510_sync, self.o_debug_6510_addr, self.o_debug_6510_data, self.o_debug_6510_regs
     ]
 
   def elaborate(self, platform):
@@ -212,6 +219,14 @@ class MyC64(Elaboratable):
         u_cart.i_mem_data.eq(self.i_cart_data),
         self.o_cart_data.eq(u_cart.o_mem_data),
         self.o_cart_we.eq(u_cart.o_mem_we),
+    ]
+
+    m.d.comb += [
+      self.o_debug_6510_valid.eq(u_cpu.o_debug_valid),
+      self.o_debug_6510_sync.eq(u_cpu.o_debug_sync),
+      self.o_debug_6510_addr.eq(u_cpu.o_debug_addr),
+      self.o_debug_6510_data.eq(u_cpu.o_debug_data),
+      self.o_debug_6510_regs.eq(u_cpu.o_debug_regs),
     ]
 
     # Bank switching - following the table from

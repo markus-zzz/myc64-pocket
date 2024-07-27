@@ -19,13 +19,25 @@ module core_top (
     input wire clk_74b,  // mainclk1
 `ifdef __VERILATOR__
     input wire reset_n,
+    input wire clk_32mhz,
+`endif
     output wire debug_iec_atn,
     output wire debug_iec_data,
     output wire debug_iec_clock,
     output wire debug_1mhz_ph1_en,
     output wire debug_1mhz_ph2_en,
-    input wire clk_32mhz,
-`endif
+
+    output wire debug_c64_cpu_valid,
+    output wire debug_c64_cpu_sync,
+    output wire [15:0] debug_c64_cpu_addr,
+    output wire [7:0] debug_c64_cpu_data,
+    output wire [63:0]debug_c64_cpu_regs,
+
+    output wire debug_c1541_cpu_valid,
+    output wire debug_c1541_cpu_sync,
+    output wire [15:0] debug_c1541_cpu_addr,
+    output wire [7:0] debug_c1541_cpu_data,
+    output wire [63:0]debug_c1541_cpu_regs,
 
     ///////////////////////////////////////////////////
     // cartridge interface
@@ -530,13 +542,11 @@ module core_top (
   assign iec_data = iec_c64_data_out & iec_1541_data_out;
   assign iec_clock = iec_c64_clock_out & iec_1541_clock_out;
 
-`ifdef __VERILATOR__
-    assign debug_iec_atn = iec_atn;
-    assign debug_iec_data = iec_data;
-    assign debug_iec_clock = iec_clock;
-    assign debug_1mhz_ph1_en = clk_8mhz_1mhz_ph1_en;
-    assign debug_1mhz_ph2_en = clk_8mhz_1mhz_ph2_en;
-`endif
+  assign debug_iec_atn = iec_atn;
+  assign debug_iec_data = iec_data;
+  assign debug_iec_clock = iec_clock;
+  assign debug_1mhz_ph1_en = clk_8mhz_1mhz_ph1_en;
+  assign debug_1mhz_ph2_en = clk_8mhz_1mhz_ph2_en;
 
   myc64_top u_myc64 (
       .rst(ph_synced_rst),
@@ -567,7 +577,13 @@ module core_top (
       .o_cart_addr(c64_cart_addr),
       .o_cart_we(c64_cart_we),
       .i_cart_data(c64_cart_idata),
-      .o_cart_data(c64_cart_odata)
+      .o_cart_data(c64_cart_odata),
+      // Debug signals
+      .o_debug_6510_valid(debug_c64_cpu_valid),
+      .o_debug_6510_sync(debug_c64_cpu_sync),
+      .o_debug_6510_addr(debug_c64_cpu_addr),
+      .o_debug_6510_data(debug_c64_cpu_data),
+      .o_debug_6510_regs(debug_c64_cpu_regs)
   );
 
   wire [15:0] c1541_bus_addr;
@@ -602,7 +618,13 @@ module core_top (
       .i_iec_data_in(iec_data),
       .o_iec_data_out(iec_1541_data_out),
       .i_iec_clock_in(iec_clock),
-      .o_iec_clock_out(iec_1541_clock_out)
+      .o_iec_clock_out(iec_1541_clock_out),
+      // Debug signals
+      .o_debug_6502_valid(debug_c1541_cpu_valid),
+      .o_debug_6502_sync(debug_c1541_cpu_sync),
+      .o_debug_6502_addr(debug_c1541_cpu_addr),
+      .o_debug_6502_data(debug_c1541_cpu_data),
+      .o_debug_6502_regs(debug_c1541_cpu_regs)
   );
 
   wire [15:0] c64_bus_addr;

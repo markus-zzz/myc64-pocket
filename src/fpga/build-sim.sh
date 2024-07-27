@@ -24,4 +24,4 @@ rm -rf $OBJ_DIR
 VERILATOR_ROOT=/home/markus/work/install/share/verilator
 cd $OBJ_DIR; make -f Vcore_top.mk; cd ..
 
-g++ -std=c++14 core_top-sim.cpp $OBJ_DIR/Vcore_top__ALL.a -I$OBJ_DIR/ -I$VERILATOR_ROOT/include/ -I$VERILATOR_ROOT/include/vltstd $VERILATOR_ROOT/include/verilated.cpp $VERILATOR_ROOT/include/verilated_threads.cpp $VERILATOR_ROOT/include/verilated_fst_c.cpp -Werror -I. -o core_top-sim -O3 -g0 `pkg-config --cflags --libs gtk+-3.0` -lz
+g++ -std=c++14 core_top-sim.cpp disasm.cpp $OBJ_DIR/Vcore_top__ALL.a -I$OBJ_DIR/ -I$VERILATOR_ROOT/include/ -I$VERILATOR_ROOT/include/vltstd $VERILATOR_ROOT/include/verilated.cpp $VERILATOR_ROOT/include/verilated_threads.cpp $VERILATOR_ROOT/include/verilated_fst_c.cpp -Werror -I. -o core_top-sim -O3 -g0 `pkg-config --cflags --libs gtk+-3.0` -lz

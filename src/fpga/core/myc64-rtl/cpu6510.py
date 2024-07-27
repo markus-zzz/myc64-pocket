@@ -34,10 +34,11 @@ class Cpu6510(Elaboratable):
     self.o_port = Signal(6, reset=0b11_1111)
     self.i_port = Signal(6)
 
-    self.ports = [
-        self.clk_1mhz_ph1_en, self.clk_1mhz_ph2_en, self.o_addr, self.i_data, self.o_data, self.o_we, self.i_irq,
-        self.i_nmi, self.i_stun, self.o_port, self.i_port
-    ]
+    self.o_debug_valid = Signal()
+    self.o_debug_sync = Signal()
+    self.o_debug_addr = Signal(16)
+    self.o_debug_data = Signal(8)
+    self.o_debug_regs = Signal(64)
 
   def elaborate(self, platform):
     m = Module()
@@ -52,6 +53,7 @@ class Cpu6510(Elaboratable):
     we = Signal()
     we_n = Signal()
     rdy_mask = Signal()
+    sync = Signal()
 
     with m.If(self.i_stun):
       m.d.sync += rdy_mask.eq(0)
@@ -74,10 +76,14 @@ class Cpu6510(Elaboratable):
                                    o_R_W_n=we_n,
                                    o_A=addr,
                                    i_DI=data_i,
-                                   o_DO=data_o)
+                                   o_DO=data_o,
+                                   o_Sync=sync
+                                   #,o_DEBUG_REGS=self.o_debug_regs
+                                   )
 
     m.d.comb += we.eq(~we_n)
     m.d.comb += [self.o_addr.eq(addr), self.o_data.eq(data_o), self.o_we.eq(we)]
+    m.d.comb += [self.o_debug_valid.eq(clk_enable), self.o_debug_sync.eq(sync), self.o_debug_addr.eq(addr), self.o_debug_data.eq(data_i)]
 
     port_dir = Signal(6)
     port = Signal(6)
