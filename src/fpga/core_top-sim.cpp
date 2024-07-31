@@ -42,6 +42,8 @@
 #include "1540-c000.h"
 #include "1541-e000.h"
 
+#define CLK_32MHZ 1
+
 #define CRT_SLOT_ID 0
 #define PRG_SLOT_ID 1
 #define G64_SLOT_ID 2
@@ -53,6 +55,33 @@ static std::unique_ptr<Vcore_top> dut;
 
 using Memory = std::array<uint8_t, 0x10000>;
 unsigned disasm(FILE *fp, const Memory &mem, uint16_t addr);
+
+class SimplePSRAM {
+public:
+  SimplePSRAM() {}
+  void Tick() {
+    if (dut->clk_32mhz) {
+      if (!dut->cram0_adv_n) {
+        addr_ = (dut->cram0_a << 16) | dut->cram0_dq;
+        assert(addr_ < mem_.size());
+      } else {
+        if (!dut->cram0_we_n) {
+          // Write
+          if (!dut->cram0_ub_n)
+            mem_[addr_] = (mem_[addr_] & 0x00ff) | (dut->cram0_dq & 0xff00);
+          if (!dut->cram0_lb_n)
+            mem_[addr_] = (mem_[addr_] & 0xff00) | (dut->cram0_dq & 0x00ff);
+        } else {
+          // Read
+          dut->cram0_dq = mem_[addr_];
+        }
+      }
+    }
+  }
+private:
+  std::array<uint16_t, 2*1024*1024> mem_;
+  uint32_t addr_ = 0;
+};
 
 class Trace6502 {
 public:
@@ -564,6 +593,10 @@ int main(int argc, char *argv[]) {
 
   bridge.Finalize();
 
+#if CLK_32MHZ
+  SimplePSRAM psram;
+#endif
+
   std::unique_ptr<TraceRTL> trace_rtl;
   if (!trace_path.empty()) {
     trace_rtl = std::make_unique<TraceRTL>(trace_path, trace_modules,
@@ -609,6 +642,9 @@ int main(int argc, char *argv[]) {
     }
 #if CLK_32MHZ
     dut->clk_32mhz = !dut->clk_32mhz;
+    if (dut->clk_32mhz) {
+      psram.Tick();
+    }
     if (g_ticks % 4 == 0) {
 #endif
       dut->clk_74a = !dut->clk_74a;

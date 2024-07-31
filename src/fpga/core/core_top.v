@@ -715,7 +715,7 @@ module core_top (
   wire [7:0] c64_cart_idata;
   wire [7:0] c64_cart_odata;
   wire c64_cart_we;
-`ifdef __VERILATOR__
+`ifdef __VERILATOR__XXX
   spram #(
       .aw(21),
       .dw(8)
