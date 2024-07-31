@@ -738,7 +738,7 @@ module core_top (
   wire clk_32mhz_1mhz_ph12_en;
   assign clk_32mhz_1mhz_ph12_en = clk_32mhz_cntr[3:0] == 0;
   always @(posedge clk_32mhz) begin
-    if (rst) clk_32mhz_cntr <= 13;
+    if (rst) clk_32mhz_cntr <= 10; // XXX: This is a bit arbitrary but BAD: 13,0,15 GOOD: 10
     else clk_32mhz_cntr <= clk_32mhz_cntr + 1;
   end
 
@@ -934,9 +934,13 @@ module core_top (
       keyboard_mask[63:32] <= cpu_mem_wdata;
   end
 
-  wire rst;
   wire bridge_ack_pulse;
-  assign rst = ~reset_n;
+
+  // Synchronize the 'reset_n' signal for safe use in the clk_8mhz domain (as
+  // well as the related clk_32mhz domain).
+  wire rst;
+  synch_3 s_reset_n (~reset_n, rst, clk_8mhz);
+  //assign rst = ~reset_n;
 
   always @(posedge clk_8mhz) begin
     if (rst) cpu_mem_ready <= 0;
