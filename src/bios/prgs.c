@@ -20,35 +20,15 @@
 
 #include "bios.h"
 
-static uint32_t get_ds_length(uint16_t slot_id) {
-  volatile uint32_t *p = BRIDGE_DS_TABLE;
-
-  for (unsigned idx = 0; idx < 32; idx++) {
-    uint16_t ds_slot_id = p[idx * 2 + 0] & 0xffff;
-    uint32_t ds_length = p[idx * 2 + 1];
-    if (ds_slot_id == slot_id)
-      return ds_length;
-  }
-  return 0;
-}
-
 static void load_prg(uint16_t slot_id) {
-  volatile uint8_t *p = (volatile uint8_t *)0x70000000;
   volatile uint8_t *RAM = (volatile uint8_t *)0x50000000;
-  uint16_t slot_length = get_ds_length(slot_id);
+  uint16_t slot_length = bridge_ds_get_length(slot_id);
   if (!slot_length)
     return;
 
   // First load the 16 bit header with PrgStartAddr
-  *TARGET_20 = slot_id; // slot-id
-  *TARGET_24 = 0;       // slot-offset
-  *TARGET_28 = 0x70000000;
-  *TARGET_2C = 2; // length
-  *TARGET_0 = 0x636D0180;
-  while ((*TARGET_0 >> 16) != 0x6F6B)
-    ;
   uint16_t PrgSize = slot_length - 2;
-  uint16_t PrgStartAddr = (p[1] << 8) | p[0];
+  uint16_t PrgStartAddr = bridge_ds_get_uint16(slot_id, 0);
 
   // Update various zero page pointers to adjust for loaded program.
   // - Pointer to beginning of variable area. (End of program plus 1.)
@@ -68,30 +48,8 @@ static void load_prg(uint16_t slot_id) {
   RAM_W16(0x31, PrgEndAddr);
   RAM_W16(0xae, PrgEndAddr);
 
-  volatile uint8_t *q = &RAM[PrgStartAddr];
-
-  const uint32_t buf_size = BRIDGE_DPRAM_SIZE;
-  uint32_t slot_offset = 2;
-  uint32_t idx = 0;
-
-  while (slot_offset < slot_length) {
-    uint32_t chunk_size = MIN(slot_length - slot_offset, buf_size);
-    *TARGET_20 = slot_id;
-    *TARGET_24 = slot_offset;
-    *TARGET_28 = 0x70000000;
-    *TARGET_2C = chunk_size;
-    *TARGET_0 = 0x636D0180;
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-
-    // Write into C64 RAM
-    for (uint32_t i = 0; i < chunk_size; i++) {
-      if (idx < PrgSize)
-        q[idx++] = p[i];
-    }
-
-    slot_offset += chunk_size;
-  }
+  // Finally load the .prg contents into C64 RAM
+  bridge_ds_read(slot_id, 2, slot_length - 2, (uint8_t *)&RAM[PrgStartAddr]);
 }
 
 static enum {
@@ -101,10 +59,8 @@ static enum {
   IS_KEY_U,
   IS_KEY_N,
   IS_KEY_RET
-} inject_state;
+} inject_state = IS_IDLE;
 static uint32_t inject_wait;
-
-void prgs_init() { inject_state = IS_IDLE; }
 
 void prgs_irq() {
   switch (inject_state) {

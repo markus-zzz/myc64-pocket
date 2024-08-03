@@ -25,23 +25,16 @@
 #define TIMER_TIMEOUT 80000
 volatile uint32_t timer_ticks;
 
-void keyboard_virt_init();
 void keyboard_virt_handle();
 void keyboard_virt_draw();
 
-void prgs_init();
 void prgs_irq();
 
-void crts_init();
 void crts_irq();
 
-void g64_init();
-void g64_handle();
-void g64_draw();
 void g64_draw_status_bar();
 void g64_irq();
 
-void misc_init();
 void misc_handle();
 void misc_draw();
 
@@ -49,14 +42,12 @@ void keyboard_ext_handle();
 
 static const struct osd_tab {
   const char *name;
-  void (*init)(void);
   void (*handle)(void);
   void (*draw)(void);
 
 } osd_tabs[] = {
-    {"KEYBOARD", keyboard_virt_init, keyboard_virt_handle, keyboard_virt_draw},
-    {"G64", g64_init, g64_handle, g64_draw},
-    {"MISC", misc_init, misc_handle, misc_draw},
+    {"KEYBOARD", keyboard_virt_handle, keyboard_virt_draw},
+    {"MISC", misc_handle, misc_draw},
 };
 
 uint32_t cont1_key_p = 0;
@@ -70,58 +61,22 @@ uint8_t updated_slots;
 static volatile int osd_idx;
 osd_mode_t osd_mode;
 
-void load_rom(uint16_t slot_id, volatile uint8_t *dst, uint32_t slot_length) {
-  volatile uint8_t *p = (volatile uint8_t *)0x70000000;
-  // uint16_t slot_length = get_ds_length(slot_id);
-  if (!slot_length)
-    return;
-
-  const uint32_t buf_size = BRIDGE_DPRAM_SIZE;
-  uint32_t slot_offset = 0;
-
-  while (slot_offset < slot_length) {
-    uint32_t chunk_size = MIN(slot_length - slot_offset, buf_size);
-    *TARGET_20 = slot_id;
-    *TARGET_24 = slot_offset;
-    *TARGET_28 = 0x70000000;
-    *TARGET_2C = chunk_size;
-    *TARGET_0 = 0x636D0180;
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-
-    // Write into C64 ROM
-    for (uint32_t i = 0; i < chunk_size; i++) {
-      *dst++ = p[i];
-    }
-
-    slot_offset += chunk_size;
-  }
-}
-
 int main(void) {
-
-  // Initialize OSD tabs
-  for (int i = 0; i < N_OSD_TABS; i++) {
-    if (osd_tabs[i].init)
-      osd_tabs[i].init();
-  }
-  prgs_init();
-  crts_init();
 
   // Wait for previous command to finish
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ;
 
   // Load C64 BASIC ROM
-  load_rom(200, (volatile uint8_t *)0x50010000, 8192);
+  bridge_ds_read(200, 0, 8192, (uint8_t *)0x50010000);
   // Load C64 CHAR ROM
-  load_rom(201, (volatile uint8_t *)0x50020000, 4096);
+  bridge_ds_read(201, 0, 4096, (uint8_t *)0x50020000);
   // Load C64 KERNAL ROM
-  load_rom(202, (volatile uint8_t *)0x50030000, 8192);
+  bridge_ds_read(202, 0, 8192, (uint8_t *)0x50030000);
 
   // Load 1540/1541 ROMs
-  load_rom(203, (volatile uint8_t *)0x50040000, 8192);
-  load_rom(204, (volatile uint8_t *)(0x50040000 + 8192), 8192);
+  bridge_ds_read(203, 0, 8192, (uint8_t *)0x50040000);
+  bridge_ds_read(204, 0, 8192, (uint8_t *)(0x50040000 + 8192));
 
   *C64_CTRL = bits_set(*C64_CTRL, 1, 2, 2); // Joystick1 = cont2
   *C64_CTRL = bits_set(*C64_CTRL, 3, 2, 1); // Joystick2 = cont1

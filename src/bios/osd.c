@@ -20,6 +20,7 @@
 
 #include "bios.h"
 #include "chars.h"
+#include <stdarg.h>
 
 #define OSD_DIM_X 256
 #define OSD_DIM_Y 64
@@ -58,10 +59,11 @@ static char to_upper(char c) {
     return c;
 }
 
-void osd_put_char(int x, int y, char c, int invert) {
+unsigned osd_put_char(int x, int y, char c, int invert) {
   c = to_upper(c);
   const uint8_t *p = &chars_bin[(c & 0x3f) * 8];
   draw_char_bitmap(x, y, p, invert ? 1 : 0);
+  return x + 8;
 }
 
 unsigned osd_put_str(int x, int y, const char *str, int invert) {
@@ -96,4 +98,26 @@ void osd_clear() {
   for (int i = 0; i < OSD_DIM_X * OSD_DIM_Y / 32; i++) {
     osd_fb[i] = 0;
   }
+}
+
+void osd_printf(int x, int y, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  while (*fmt) {
+    if (*fmt == '%') {
+      int arg = va_arg(ap, int);
+      fmt++;
+      switch (*fmt++) {
+      case 'c':
+        x = osd_put_char(x, y, arg, 0);
+        break;
+      case 'x':
+        x = osd_put_hex8(x, y, arg, 0);
+        break;
+      }
+    } else {
+      x = osd_put_char(x, y, *fmt++, 0);
+    }
+  }
+  va_end(ap);
 }

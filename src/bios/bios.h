@@ -110,18 +110,33 @@ extern uint64_t c64_keyb_mask;
 extern uint64_t c64_isr_keyb_mask;
 extern uint8_t updated_slots;
 
+//
+// Bridge
+//
+uint32_t bridge_ds_get_length(uint16_t slot_id);
+uint16_t bridge_ds_get_uint16(uint16_t slot_id, uint32_t offset);
+uint32_t bridge_ds_get_uint32(uint16_t slot_id, uint32_t offset);
+void bridge_ds_read(uint16_t slot_id, uint32_t offset, uint32_t length,
+                    uint8_t *dst);
+
+//
+// OSD
+//
 typedef enum { OSD_OFF, OSD_FULL, OSD_STATUS_BAR } osd_mode_t;
 
 extern osd_mode_t osd_mode;
 
 void osd_clear();
-void osd_put_char(int x, int y, char c, int invert);
+unsigned osd_put_char(int x, int y, char c, int invert);
 unsigned osd_put_str(int x, int y, const char *str, int invert);
 unsigned osd_put_hex8(int x, int y, uint8_t val, int invert);
 unsigned osd_put_hex16(int x, int y, uint16_t val, int invert);
+void osd_printf(int x, int y, const char *fmt, ...);
 
 void irq_mask(uint32_t mask);
 void timer_start(uint32_t timeout);
+
+void misc_reset_core(uint8_t cart_type);
 
 static inline uint32_t bits_get(uint32_t in, uint32_t pos, uint32_t width) {
   uint32_t mask = (1 << width) - 1;
@@ -136,4 +151,8 @@ static inline uint32_t bits_set(uint32_t in, uint32_t pos, uint32_t width,
   return in | (val << pos);
 }
 
-void misc_reset_core(uint8_t cart_type);
+static inline uint16_t swap16(uint16_t x) { return (x << 8) | (x >> 8); }
+
+static inline uint32_t swap32(uint32_t x) {
+  return ((uint32_t)swap16(x) << 16) | ((uint32_t)swap16(x >> 16));
+}

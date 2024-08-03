@@ -67,14 +67,6 @@ unsigned row_length(unsigned row_idx) {
   return len;
 }
 
-void keyboard_virt_init() {
-  sel_row = 0;
-  sel_col = 0;
-  prev_cols[0] = 0;
-  prev_cols[N_ROWS - 1] = 0;
-  sticky_keys = 0;
-}
-
 void keyboard_virt_handle() {
   if (KEYB_POSEDGE(dpad_up)) {
     if (sel_row > 0) {

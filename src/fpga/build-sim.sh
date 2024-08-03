@@ -4,7 +4,8 @@ set -e
 set -x
 
 pushd ../bios
-./build-sw-clang.sh
+make clean
+make
 popd
 
 pushd core/myc64-rtl

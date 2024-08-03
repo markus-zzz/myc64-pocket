@@ -26,10 +26,10 @@
 static uint32_t track_offsets[G64_NUM_TRACKS];
 static uint16_t track_sizes[G64_NUM_TRACKS];
 
-static volatile uint8_t track_no;
+static volatile uint8_t track_no = 0xff;
 static volatile uint8_t led_on;
 static volatile uint8_t motor_on;
-static volatile uint8_t g64_loaded;
+static volatile uint8_t g64_loaded = 0;
 
 static volatile uint32_t status_bar_timeout;
 
@@ -41,48 +41,30 @@ static void load_track(uint8_t track_id) {
 
   *TARGET_20 = G64_SLOT_ID;             // slot-id
   *TARGET_24 = track_offsets[track_id]; // slot-offset
-  *TARGET_28 = 0x90000000;
-  *TARGET_2C = track_sizes[track_id]; // length
+  *TARGET_28 = 0x90000000;              // DP track memory
+  *TARGET_2C = track_sizes[track_id];   // length
   *TARGET_0 = 0x636D0180;
 }
 
 void load_g64() {
   // Setup track offsets
   for (unsigned i = 0; i < G64_NUM_TRACKS; i++) {
-    *TARGET_20 = G64_SLOT_ID;                    // slot-id
-    *TARGET_24 = G64_TRACK_OFFSET_TABLE + i * 4; // slot-offset
-    *TARGET_28 = 0x70000000;
-    *TARGET_2C = 4; // length
-    *TARGET_0 = 0x636D0180;
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-    volatile uint32_t *p32 = (volatile uint32_t *)0x70000000;
+    uint32_t track_off =
+        bridge_ds_get_uint32(G64_SLOT_ID, G64_TRACK_OFFSET_TABLE + i * 4);
     track_offsets[i] =
-        *p32 ? *p32 + 2 : 0; // skip the 16 bit track length field (if defined)
+        track_off ? track_off + 2
+                  : 0; // skip the 16 bit track length field (if defined)
   }
 
   // Setup track sizes
   for (unsigned i = 0; i < G64_NUM_TRACKS; i++) {
     if (!track_offsets[i])
       continue;
-    *TARGET_20 = G64_SLOT_ID;          // slot-id
-    *TARGET_24 = track_offsets[i] - 2; // slot-offset
-    *TARGET_28 = 0x70000000;
-    *TARGET_2C = 2; // length
-    *TARGET_0 = 0x636D0180;
-    while ((*TARGET_0 >> 16) != 0x6F6B)
-      ;
-    volatile uint16_t *p16 = (volatile uint16_t *)0x70000000;
-    track_sizes[i] = *p16;
+    track_sizes[i] = bridge_ds_get_uint16(G64_SLOT_ID, track_offsets[i] - 2);
   }
 
   track_no = 0xff;
   g64_loaded = 1;
-}
-
-void g64_init() {
-  track_no = 0xff;
-  g64_loaded = 0;
 }
 
 void g64_irq() {
@@ -114,26 +96,7 @@ void g64_irq() {
   }
 }
 
-void g64_handle() {}
-
-void g64_draw() {
-  unsigned x = 2;
-  x = osd_put_str(x, 20, "MOTOR:", 0);
-  osd_put_char(x, 20, motor_on ? '1' : '0', 0);
-  x = osd_put_str(x + 16, 20, "LED:", 0);
-  osd_put_char(x, 20, led_on ? '1' : '0', 0);
-  x = osd_put_str(x + 16, 20, "TRACK:$", 0);
-  x = osd_put_hex8(x, 20, track_no, 0);
-}
-
 void g64_draw_status_bar() {
-  unsigned x = 2;
-  unsigned y = 0;
-  x = osd_put_str(x, y, "[G64 MOTOR:", 0);
-  osd_put_char(x, y, motor_on ? '1' : '0', 0);
-  x = osd_put_str(x + 16, y, "LED:", 0);
-  osd_put_char(x, y, led_on ? '1' : '0', 0);
-  x = osd_put_str(x + 16, y, "TRACK:$", 0);
-  x = osd_put_hex8(x, y, track_no, 0);
-  osd_put_char(x, y, ']', 0);
+  osd_printf(0, 0, "[G64 MOTOR:%c LED:%c TRACK:$%x] ", motor_on ? '1' : '0',
+             led_on ? '1' : '0', track_no);
 }

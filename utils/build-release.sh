@@ -11,7 +11,8 @@ rm -f MyC64-Pocket.zip
 rm -rf ${STAGING}
 
 pushd src/bios
-./build-sw-clang.sh
+make clean
+make
 popd
 
 pushd src/fpga/core/myc64-rtl

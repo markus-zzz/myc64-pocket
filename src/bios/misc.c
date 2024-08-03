@@ -20,7 +20,7 @@
 
 #include "bios.h"
 
-static volatile int sel_row;
+static volatile int sel_row = 0;
 
 uint8_t joystick1;
 uint8_t joystick2;
@@ -33,12 +33,10 @@ void misc_reset_core(uint8_t cart_type) {
   for (unsigned i = 0; i < 16; i++) {
     C64_RAM[0x8000 + i] = 0;
   }
-  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0);     // Assert reset for MyC64
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0);         // Assert reset for MyC64
   *C64_CTRL = bits_set(*C64_CTRL, 5, 2, cart_type); // Set cartridge type
-  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1);     // Release reset for MyC64
+  *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1);         // Release reset for MyC64
 }
-
-void misc_init() { sel_row = 0; }
 
 void misc_handle() {
   if (KEYB_POSEDGE(dpad_up)) {
