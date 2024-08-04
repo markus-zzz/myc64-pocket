@@ -35,13 +35,6 @@
 #include <string.h>
 #include <vector>
 
-#include "basic.h"
-#include "characters.h"
-#include "kernal.h"
-
-#include "1540-c000.h"
-#include "1541-e000.h"
-
 #define CLK_32MHZ 1
 
 #define CRT_SLOT_ID 0
@@ -78,8 +71,9 @@ public:
       }
     }
   }
+
 private:
-  std::array<uint16_t, 2*1024*1024> mem_;
+  std::array<uint16_t, 2 * 1024 * 1024> mem_;
   uint32_t addr_ = 0;
 };
 
@@ -460,10 +454,13 @@ public:
       if (ds_read_cntr < ds_read_length) {
         dut->bridge_addr = ds_read_bridge_address + ds_read_cntr;
         dut->bridge_wr_data = 0;
-        auto *data = dataslots[ds_read_slot_id].first;
-        for (unsigned i = 0; i < 4; i++)
-          dut->bridge_wr_data |= data[ds_read_slot_offset + ds_read_cntr + i]
-                                 << (8 * (3 - i));
+        auto &fs = dataslots[ds_read_slot_id].first;
+        for (unsigned i = 0; i < 4; i++) {
+          uint8_t byte;
+          fs.seekg(ds_read_slot_offset + ds_read_cntr + i, std::ios::beg);
+          fs.read(reinterpret_cast<char *>(&byte), 1);
+          dut->bridge_wr_data |= static_cast<uint32_t>(byte) << (8 * (3 - i));
+        }
         dut->bridge_wr = 1;
         ds_read_cntr += 4;
       } else {
@@ -478,16 +475,15 @@ public:
     }
   }
 
-  void RegisterDataSlot(uint16_t id, const uint8_t *data, uint32_t len) {
-    dataslots[id] = std::make_pair(data, len);
-  }
   void RegisterDataSlot(uint16_t id, const std::string &path) {
     std::ifstream instream(path, std::ios::in | std::ios::binary);
-    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
-                              std::istreambuf_iterator<char>());
-    auto *p = new uint8_t[data.size()];
-    memcpy(p, data.data(), data.size());
-    dataslots[id] = std::make_pair(p, data.size());
+    if (!instream) {
+      std::cerr << "Unable to open '" << path << "'\n";
+      exit(1);
+    }
+    instream.seekg(0, std::ios::end);
+    auto size = instream.tellg();
+    dataslots[id] = std::make_pair(std::move(instream), size);
     if (id < 16) { // Only lower 16 are mapped to update register
       updated_dataslots.push_back(id);
     }
@@ -504,7 +500,7 @@ private:
 
   unsigned cntr = 0;
 
-  std::map<uint16_t, std::pair<const uint8_t *, uint32_t>> dataslots;
+  std::map<uint16_t, std::pair<std::ifstream, uint32_t>> dataslots;
   decltype(dataslots)::iterator ds_it;
   std::vector<uint16_t> updated_dataslots;
   decltype(updated_dataslots)::iterator updated_dataslots_iter;
@@ -572,11 +568,11 @@ int main(int argc, char *argv[]) {
   //
   BridgeHandler bridge;
 
-  bridge.RegisterDataSlot(200, basic_bin, basic_bin_len);
-  bridge.RegisterDataSlot(201, characters_bin, characters_bin_len);
-  bridge.RegisterDataSlot(202, kernal_bin, kernal_bin_len);
-  bridge.RegisterDataSlot(203, __1540_c000_bin, __1540_c000_bin_len);
-  bridge.RegisterDataSlot(204, __1541_e000_bin, __1541_e000_bin_len);
+  bridge.RegisterDataSlot(200, "basic.bin");
+  bridge.RegisterDataSlot(201, "characters.bin");
+  bridge.RegisterDataSlot(202, "kernal.bin");
+  bridge.RegisterDataSlot(203, "1540-c000.bin");
+  bridge.RegisterDataSlot(204, "1541-e000.bin");
 
   // Load .prg into slot
   if (!prg_path.empty()) {
