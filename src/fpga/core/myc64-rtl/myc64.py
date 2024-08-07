@@ -110,8 +110,8 @@ class MyC64(Elaboratable):
     self.o_vid_en = Signal()
     self.o_wave = Signal(16)
     self.i_keyboard_mask = Signal(64)
-    self.i_joystick1 = Signal(5)
-    self.i_joystick2 = Signal(5)
+    self.i_joystick1 = Signal(7) # UP,DOWN,LEFT,RIGHT,FIRE1,FIRE2,FIRE3
+    self.i_joystick2 = Signal(7)
 
     self.o_bus_addr = Signal(16)
     self.i_rom_char_data = Signal(8)
@@ -384,6 +384,24 @@ class MyC64(Elaboratable):
         Mux(~u_cia1.o_pa[2], self.i_keyboard_mask[16:24], 0) |  #
         Mux(~u_cia1.o_pa[1], self.i_keyboard_mask[8:16], 0) |  #
         Mux(~u_cia1.o_pa[0], self.i_keyboard_mask[0:8], 0)))
+
+    # 2nd and 3rd fire button support
+    # From http://wiki.icomp.de/wiki/DB9-Joystick#C64
+    #
+    # "When the button is not pressed the POT line is floating, which equals a
+    #  large resistance to VCC, and will read as $FF. When the button is pressed
+    #  the POT line is connected to VCC, which equals no resistance to VCC, and
+    #  will read as $00."
+    with m.If(u_cia1.o_pa[6:8] == 0b01):
+      m.d.comb += [
+        u_sid.i_paddle_x.eq(Mux(self.i_joystick1[5], C(0x00, 8), C(0xff, 8))),
+        u_sid.i_paddle_y.eq(Mux(self.i_joystick1[6], C(0x00, 8), C(0xff, 8)))
+      ]
+    with m.Elif(u_cia1.o_pa[6:8] == 0b10):
+      m.d.comb += [
+        u_sid.i_paddle_x.eq(Mux(self.i_joystick2[5], C(0x00, 8), C(0xff, 8))),
+        u_sid.i_paddle_y.eq(Mux(self.i_joystick2[6], C(0x00, 8), C(0xff, 8)))
+      ]
 
     m.d.comb += [self.o_vid_hsync.eq(u_vic.o_hsync), self.o_vid_vsync.eq(u_vic.o_vsync), self.o_vid_en.eq(u_vic.o_visib), self.o_wave.eq(u_sid.o_wave)]
 

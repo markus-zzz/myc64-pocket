@@ -197,6 +197,8 @@ class Sid(Elaboratable):
     self.i_data = Signal(8)
     self.o_data = Signal(8)
     self.o_wave = Signal(16)
+    self.i_paddle_x = Signal(8)
+    self.i_paddle_y = Signal(8)
 
   def elaborate(self, platform):
     m = Module()
@@ -318,6 +320,10 @@ class Sid(Elaboratable):
     m.d.sync += self.o_wave.eq((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4)
 
     with m.Switch(self.i_addr):
+      with m.Case(0x19):
+        m.d.comb += self.o_data.eq(self.i_paddle_x)
+      with m.Case(0x1a):
+        m.d.comb += self.o_data.eq(self.i_paddle_y)
       with m.Case(0x1b):
         m.d.comb += self.o_data.eq(u_wave3.o_wave[4:12])
       with m.Case(0x1c):

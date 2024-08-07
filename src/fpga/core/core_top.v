@@ -497,15 +497,15 @@ module core_top (
   wire [23:0] c64_color_rgb;
   wire [15:0] sid_wave;
 
-  reg [4:0] joystick1;
+  reg [6:0] joystick1;
 
   always @* begin
     case (c64_ctrl[2:1])
       2'b01: begin
-        joystick1 = cont1_key_s[4:0];
+        joystick1 = cont1_key_s[6:0];
       end
       2'b10: begin
-        joystick1 = cont2_key_s[4:0];
+        joystick1 = cont2_key_s[6:0];
       end
       default: begin
         joystick1 = 0;
@@ -513,15 +513,15 @@ module core_top (
     endcase
   end
 
-  reg [4:0] joystick2;
+  reg [6:0] joystick2;
 
   always @* begin
     case (c64_ctrl[4:3])
       2'b01: begin
-        joystick2 = cont1_key_s[4:0];
+        joystick2 = cont1_key_s[6:0];
       end
       2'b10: begin
-        joystick2 = cont2_key_s[4:0];
+        joystick2 = cont2_key_s[6:0];
       end
       default: begin
         joystick2 = 0;
