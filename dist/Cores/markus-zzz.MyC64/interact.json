@@ -1,6 +1,41 @@
 {
     "interact": {
         "magic": "APF_VER_1",
-        "variables": []
+        "variables": [
+      {
+        "name": "OSD x-offset",
+        "id": 0,
+        "type": "slider_u32",
+        "enabled": true,
+        "address": "0xA0000000",
+        "writeonly": true,
+        "persist": true,
+        "defaultval": 0,
+        "graphical": {
+          "signed": false,
+          "min": 1,
+          "max": 127,
+          "adjust_small": 1,
+          "adjust_large": 8
+        }
+      },
+      {
+        "name": "OSD y-offset",
+        "id": 1,
+        "type": "slider_u32",
+        "enabled": true,
+        "address": "0xA0000004",
+        "writeonly": true,
+        "persist": true,
+        "defaultval": 0,
+        "graphical": {
+          "signed": false,
+          "min": 1,
+          "max": 200,
+          "adjust_small": 1,
+          "adjust_large": 8
+        }
+      }
+    ]
     }
 }

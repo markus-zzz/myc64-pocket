@@ -1016,17 +1016,53 @@ module core_top (
   //
   // On Screen Display (OSD)
   //
+  reg [7:0] osd_offset_x; // XXX: Unguarded CDC
+  reg [7:0] osd_offset_y;
+
+  initial begin
+    osd_offset_x <= 1;
+    osd_offset_y <= 1;
+  end
+
+  always @(posedge clk_74a) begin
+    // Values written by APF during core boot
+    if (bridge_wr) begin
+      case (bridge_addr)
+        32'hA000_0000: osd_offset_x <= bridge_wr_data;
+        32'hA000_0004: osd_offset_y <= bridge_wr_data;
+      endcase
+    end
+  end
+
+  reg [8:0] video_pos_x;
+  reg [8:0] video_pos_y;
+
+  wire osd_match_x = video_pos_x == osd_offset_x;
+  wire osd_match_y = video_pos_y == osd_offset_y;
+
+  always @(posedge clk_8mhz) begin
+    if (video_vs) begin
+      video_pos_y <= 0;
+    end else if (video_hs) begin
+      video_pos_x <= 0;
+      if (video_pos_x != 0)  // I.e. video_de has been active
+        video_pos_y <= video_pos_y + 1;
+    end else if (video_de) begin
+      video_pos_x <= video_pos_x + 1;
+    end
+  end
+
   reg [8:0] osd_x;
   reg [8:0] osd_y;
 
   always @(posedge clk_8mhz) begin
-    if (video_vs) begin
-      osd_y <= 0;
-    end else if (video_hs) begin
+    if (osd_match_x & osd_match_y) begin
       osd_x <= 0;
-      if (osd_x != 0)  // I.e. video_de has been active
-        osd_y <= osd_y + 1;
-    end else if (video_de) begin
+      osd_y <= 0;
+    end else if (osd_match_x) begin
+      osd_x <= 0;
+      osd_y <= osd_y + 1;
+    end else begin
       osd_x <= osd_x + 1;
     end
   end
