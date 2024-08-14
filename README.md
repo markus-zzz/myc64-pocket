@@ -179,6 +179,13 @@ virtual keyboard).
 
 ## General usage
 
+The gamepad is mapped to the C64 joystick port as follows
+
+- **dpad** - as expected
+- **face-a** - fire button
+- **face-b** - second fire button
+- **face-x** - third fire button
+
 Pressing **left-of-analogue** brings up (toggles) the on-screen-display
 containing a virtual keyboard and a small menu system for settings.
 
