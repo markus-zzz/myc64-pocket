@@ -10,7 +10,7 @@
         "address": "0xA0000000",
         "writeonly": true,
         "persist": true,
-        "defaultval": 0,
+        "defaultval": 1,
         "graphical": {
           "signed": false,
           "min": 1,
@@ -27,7 +27,7 @@
         "address": "0xA0000004",
         "writeonly": true,
         "persist": true,
-        "defaultval": 0,
+        "defaultval": 1,
         "graphical": {
           "signed": false,
           "min": 1,
