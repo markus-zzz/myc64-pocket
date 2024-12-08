@@ -207,4 +207,10 @@ class VIA(Elaboratable):
 
     m.d.comb += irq.eq((reg_ifr & reg_ier).any())
 
+    m.d.comb += [self.o_ca2.eq(0), self.o_cb2.eq(0)]
+    with m.If(reg_pcr[1:4] == C(0b111, 3)):
+      m.d.comb += self.o_ca2.eq(1)
+    with m.If(reg_pcr[5:8] == C(0b111, 3)):
+      m.d.comb += self.o_cb2.eq(1)
+
     return m

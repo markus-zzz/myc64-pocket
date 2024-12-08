@@ -19,6 +19,7 @@
 # yapf --in-place --recursive --style="{indent_width: 2, column_limit: 120}"
 
 from amaranth import *
+from amaranth.lib.memory import Memory
 from cpu6510 import Cpu6510
 from cia import Cia
 from vicii import VicII
@@ -177,10 +178,10 @@ class MyC64(Elaboratable):
     m.submodules.u_cart = u_cart = Cartridge()
 
     # Color RAM.
-    u_ram_color = Memory(width=4, depth=pow(2, 10))
+    u_ram_color = Memory(shape=4, depth=pow(2, 10), init=[])
     u_ram_color_rp = u_ram_color.read_port()
     u_ram_color_wp = u_ram_color.write_port()
-    m.submodules += [u_ram_color_rp, u_ram_color_wp]
+    m.submodules += u_ram_color
 
     cpu_di = Signal(8)
     ram_cs = Signal()

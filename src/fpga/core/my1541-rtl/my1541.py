@@ -175,22 +175,24 @@ class My1541(Elaboratable):
     read_bits = Signal(10)
     bit_cntr = Signal(3)
 
-    m.d.comb += byte_sync.eq(decoder_enable & (bit_cntr == 0b111))
-    m.d.comb += [byte.eq(read_bits[0:8]), block_sync.eq(read_bits.all())]
-    with m.If(decoder_enable):
-      m.d.sync += [bit_cntr.eq(bit_cntr + 1), read_bits.eq(Cat(track_byte_shift[7], read_bits[0:9]))]
-      with m.If(block_sync):
-        m.d.sync += bit_cntr.eq(0)
-
-    # XXX:TODO: Wire these signals to VIA2
     head_step_dir = Signal(2)
     head_step_dir_p = Signal(2)
     motor_ctrl = Signal()
     led_ctrl = Signal()
     write_protect = Signal()
     data_density = Signal(2)
+    mode = Signal() # read / not write
 
     atna = Signal()
+
+    m.d.comb += byte_sync.eq(decoder_enable & (bit_cntr == 0b111))
+    m.d.comb += [byte.eq(read_bits[0:8]), block_sync.eq(read_bits.all())]
+    with m.If(decoder_enable):
+      m.d.sync += [bit_cntr.eq(bit_cntr + 1), read_bits.eq(Cat(track_byte_shift[7], read_bits[0:9]))]
+      with m.If(mode & block_sync):
+        m.d.sync += bit_cntr.eq(0)
+
+    m.d.comb += write_protect.eq(1)
 
     m.d.comb += [
         # VIA-1
@@ -207,6 +209,7 @@ class My1541(Elaboratable):
         u_cpu_.i_so.eq(byte_sync),
         head_step_dir.eq(u_via2.o_pb[0:2]),
         motor_ctrl.eq(u_via2.o_pb[2]),
+        mode.eq(u_via2.o_cb2),
         led_ctrl.eq(u_via2.o_pb[3]),
         u_via2.i_pb[4].eq(write_protect),
         data_density.eq(u_via2.o_pb[5:7]),
