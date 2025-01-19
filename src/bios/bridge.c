@@ -17,7 +17,7 @@ uint8_t bridge_ds_get_uint8(uint16_t slot_id, uint32_t offset) {
   *TARGET_20 = slot_id; // slot-id
   *TARGET_24 = offset;  // slot-offset
   *TARGET_28 = (uint32_t)p;
-  *TARGET_2C = 2; // length
+  *TARGET_2C = 1; // length
   *TARGET_0 = 0x636D0180;
   while ((*TARGET_0 >> 16) != 0x6F6B)
     ; // XXX: Maybe should read in one go and check the actual status as well.
