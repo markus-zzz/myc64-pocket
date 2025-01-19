@@ -26,7 +26,7 @@ from sid import Sid
 
 class Cartridge(Elaboratable):
   def __init__(self):
-    self.i_cart_type = Signal(2)
+    self.i_cart_type = Signal(3)
 
     self.i_addr = Signal(16)
     self.i_we = Signal()
@@ -95,6 +95,13 @@ class Cartridge(Elaboratable):
         with m.If(self.i_io2): #reg_de00[5] &
           m.d.comb += [self.o_mem_addr.eq(0x11f00 + self.i_addr[0:8]), self.o_mem_we.eq(self.i_we)]
 
+      with m.Case(4): # Normal 8KB
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+      with m.Case(5): # Normal 16KB
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(0)]
+      with m.Case(6): # Normal Ultimax
+        m.d.comb += [self.o_exrom.eq(1), self.o_game.eq(0)]
+
     return m
 
 
@@ -127,7 +134,7 @@ class MyC64(Elaboratable):
     self.i_iec_clock_in = Signal()
     self.o_iec_clock_out = Signal()
 
-    self.i_cart_type = Signal(2)
+    self.i_cart_type = Signal(3)
     self.o_cart_addr = Signal(21)
     self.o_cart_we = Signal()
     self.i_cart_data = Signal(8)

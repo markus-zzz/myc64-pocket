@@ -30,7 +30,7 @@ class RegisterFile():
       pass
 
     def genAddressed(self, module, bus_wen, bus_rdata, bus_wdata):
-      module.d.comb += [bus_rdata.eq(Cat(self.sig, Repl(Const(1), 8 - self.sig.width)))]
+      module.d.comb += [bus_rdata.eq(Cat(self.sig, Const(1,1).replicate(8 - self.sig.width)))]
       with module.If(bus_wen):
         module.d.sync += [self.sig.eq(bus_wdata[0:self.sig.width])]
 

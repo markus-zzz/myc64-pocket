@@ -114,6 +114,7 @@ extern uint8_t updated_slots;
 // Bridge
 //
 uint32_t bridge_ds_get_length(uint16_t slot_id);
+uint8_t bridge_ds_get_uint8(uint16_t slot_id, uint32_t offset);
 uint16_t bridge_ds_get_uint16(uint16_t slot_id, uint32_t offset);
 uint32_t bridge_ds_get_uint32(uint16_t slot_id, uint32_t offset);
 void bridge_ds_read(uint16_t slot_id, uint32_t offset, uint32_t length,

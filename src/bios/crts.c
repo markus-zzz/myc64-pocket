@@ -39,6 +39,18 @@ static void load_crt(uint16_t slot_id) {
   case 1: // Action Replay
     crt_type = 3;
     break;
+  case 0: { // Normal cartridge
+    uint8_t exrom = bridge_ds_get_uint8(slot_id, 0x18);
+    uint8_t game = bridge_ds_get_uint8(slot_id, 0x19);
+    if (game && !exrom) {
+      crt_type = 4; // Normal 8KB
+    } else if (!game && !exrom) {
+      crt_type = 5; // Normal 16KB
+    } else if (!game && exrom) {
+      crt_type = 6; // Ultimax 8KB
+    }
+    break;
+  }
   default: // Unsupported format
     return;
   }

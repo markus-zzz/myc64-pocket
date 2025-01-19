@@ -573,7 +573,7 @@ module core_top (
       .o_iec_data_out(iec_c64_data_out),
       .i_iec_clock_in(iec_clock),
       .o_iec_clock_out(iec_c64_clock_out),
-      .i_cart_type(c64_ctrl[6:5]),
+      .i_cart_type(c64_ctrl[7:5]),
       .o_cart_addr(c64_cart_addr),
       .o_cart_we(c64_cart_we),
       .i_cart_data(c64_cart_idata),
@@ -913,12 +913,12 @@ module core_top (
       osd_ctrl <= cpu_mem_wdata;
   end
 
-  reg [6:0] c64_ctrl;
+  reg [7:0] c64_ctrl;
   reg [12:0] c1541_track_len;
   always @(posedge clk_8mhz) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
-      c64_ctrl <= cpu_mem_wdata[6:0];
+      c64_ctrl <= cpu_mem_wdata[7:0];
     else if (cpu_mem_addr == 32'h30000104 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111) begin
       c1541_track_len <= cpu_mem_wdata[12:0];
       $display("track_len: %d, track_no: %d", c1541_track_len, c1541_track_no);
