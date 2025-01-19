@@ -34,7 +34,7 @@ void misc_reset_core(uint8_t cart_type) {
     C64_RAM[0x8000 + i] = 0;
   }
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 0);         // Assert reset for MyC64
-  *C64_CTRL = bits_set(*C64_CTRL, 5, 2, cart_type); // Set cartridge type
+  *C64_CTRL = bits_set(*C64_CTRL, 5, 3, cart_type); // Set cartridge type
   *C64_CTRL = bits_set(*C64_CTRL, 0, 1, 1);         // Release reset for MyC64
 }
 

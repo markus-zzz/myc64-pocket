@@ -97,10 +97,13 @@ class Cartridge(Elaboratable):
 
       with m.Case(4): # Normal 8KB
         m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+        m.d.comb += self.o_mem_addr.eq(self.i_addr[0:13])
       with m.Case(5): # Normal 16KB
         m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(0)]
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], self.i_romh))
       with m.Case(6): # Normal Ultimax
         m.d.comb += [self.o_exrom.eq(1), self.o_game.eq(0)]
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], self.i_romh))
 
     return m
 
