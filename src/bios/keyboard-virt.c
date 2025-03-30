@@ -112,6 +112,15 @@ void keyboard_virt_handle() {
   }
 
   c64_keyb_mask |= sticky_keys;
+
+  // Bind secondary fire buttons
+  if (KEYB_DOWN(face_start)) {
+    if (KEYB_POSEDGE(face_b)) {
+      c64_2nd_fire_keyb_mask = C64_KEYB_MASK_KEY(e->ports);
+    } else if (KEYB_POSEDGE(face_x)) {
+      c64_3rd_fire_keyb_mask = C64_KEYB_MASK_KEY(e->ports);
+    }
+  }
 }
 
 void keyboard_virt_draw(void) {

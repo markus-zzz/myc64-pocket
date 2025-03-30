@@ -55,6 +55,8 @@ uint32_t cont1_key = 0;
 
 uint64_t c64_keyb_mask = 0;
 uint64_t c64_isr_keyb_mask = 0;
+uint64_t c64_2nd_fire_keyb_mask = 0;
+uint64_t c64_3rd_fire_keyb_mask = 0;
 
 uint8_t updated_slots;
 
@@ -214,6 +216,13 @@ uint32_t *irq(uint32_t *regs, uint32_t irqs) {
   }
 
   c64_keyb_mask |= c64_isr_keyb_mask;
+  if (osd_mode != OSD_FULL) {
+    if (KEYB_DOWN(face_b)) {
+      c64_keyb_mask |= c64_2nd_fire_keyb_mask;
+    } else if (KEYB_DOWN(face_x)) {
+      c64_keyb_mask |= c64_3rd_fire_keyb_mask;
+    }
+  }
 
   // Epilogue
   *KEYB_MASK_0 = c64_keyb_mask;
