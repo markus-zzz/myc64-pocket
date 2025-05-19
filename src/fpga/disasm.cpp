@@ -1,6 +1,7 @@
 /* d6502 v0.4 - borrowed from http://forum.6502.org/viewtopic.php?t=3644 */
 
 #include <array>
+#include <cstdint>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
