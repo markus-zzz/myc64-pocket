@@ -494,6 +494,9 @@ module core_top (
   synch_3 #(.WIDTH(16)) s_cont3_trig (cont3_trig, cont3_trig_s, clk_8mhz);
   synch_3 #(.WIDTH(16)) s_cont4_trig (cont4_trig, cont4_trig_s, clk_8mhz);
 
+  wire [4:0] ext_joy_s;
+  synch_3 #(.WIDTH(5)) s_ext_joy (cart_tran_bank3[4:0], ext_joy_s, clk_8mhz);
+
   wire [23:0] c64_color_rgb;
   wire [15:0] sid_wave;
 
@@ -506,6 +509,9 @@ module core_top (
       end
       2'b10: begin
         joystick1 = cont2_key_s[6:0];
+      end
+      2'b11: begin
+        joystick1 = {2'b00, ~ext_joy_s};
       end
       default: begin
         joystick1 = 0;
@@ -522,6 +528,9 @@ module core_top (
       end
       2'b10: begin
         joystick2 = cont2_key_s[6:0];
+      end
+      2'b11: begin
+        joystick2 = {2'b00, ~ext_joy_s};
       end
       default: begin
         joystick2 = 0;

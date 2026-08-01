@@ -53,10 +53,10 @@ void misc_handle() {
       misc_reset_core(0); // Reset with no cartridge
       break;
     case 1:
-      joystick1 = joystick1 < 2 ? joystick1 + 1 : 0;
+      joystick1 = (joystick1 + 1) & 0x3;
       break;
     case 2:
-      joystick2 = joystick2 < 2 ? joystick2 + 1 : 0;
+      joystick2 = (joystick2 + 1) & 0x3;
       break;
     }
   }
@@ -67,7 +67,7 @@ void misc_draw() {
   int sel_row_tmp = sel_row;
   IRQ_ENABLE();
 
-  const char *inputs[] = {"N/C  ", "CONT1", "CONT2"};
+  const char *inputs[] = {"N/C  ", "CONT1", "CONT2", "EXT  "};
   int offset;
   int x = 2, y = 12;
   osd_put_str(x, y, "RESET", sel_row_tmp == 0);
