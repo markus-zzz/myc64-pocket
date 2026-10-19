@@ -1,0 +1,13 @@
+.venv/
+.zig-cache/
+__pycache__/
+*.pyc
+src/bios/*.o
+src/bios/bios.elf
+src/bios/bios.bin
+src/bios/bios.vh
+src/fpga/core/myc64-rtl/myc64.v
+src/fpga/core/my1541-rtl/my1541.v
+src/fpga/output_files/
+output/*
+!output/.gitkeep

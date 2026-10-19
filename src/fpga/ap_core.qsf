@@ -738,6 +738,7 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 # end ENTITY(mf_pllbase_0002)
 # ---------------------------
 set_global_assignment -name SEED 2
+set_global_assignment -name NUM_PARALLEL_PROCESSORS 4
 set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
 
 

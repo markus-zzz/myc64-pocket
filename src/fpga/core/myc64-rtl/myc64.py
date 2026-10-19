@@ -452,6 +452,11 @@ import os
 if __name__ == "__main__":
 
   myc64 = MyC64()
+  # These port names are the ABI used by core_top.v. Older Amaranth cannot
+  # infer assignment names from newer Python bytecode, including Python 3.14.
+  for name, signal in vars(myc64).items():
+    if isinstance(signal, Signal):
+      signal.name = name
 
   with open("myc64.v", "w") as f:
     f.write(verilog.convert(elaboratable=myc64, name='myc64_top', ports=myc64.ports))

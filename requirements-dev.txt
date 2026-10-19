@@ -1,0 +1,3 @@
+amaranth==0.4.5
+amaranth-yosys==0.40.0.0.post103
+ziglang==0.13.0

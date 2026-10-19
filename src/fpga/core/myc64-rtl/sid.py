@@ -186,6 +186,36 @@ class EnvelopeGenerator(Elaboratable):
     return m
 
 
+class VolumeDac(Elaboratable):
+  """Approximate the 6581's volume-dependent output offset for digi samples."""
+
+  def __init__(self):
+    self.clk_1mhz_ph1_en = Signal()
+    self.i_volume = Signal(4)
+    self.o_wave = Signal(signed(16))
+
+  def elaborate(self, platform):
+    m = Module()
+
+    # 256 output units per volume step leaves headroom beside all three voices.
+    # This is a compatibility approximation, not a measured analog SID model.
+    level = Signal(signed(16))
+    dc = Signal(signed(25))
+    target = Signal(signed(25))
+    m.d.comb += [
+        level.eq(self.i_volume << 8),
+        target.eq(level << 12),
+        self.o_wave.eq(level - (dc >> 12))
+    ]
+
+    # AC coupling AFTER volume modulation: about 38 Hz at a 1 MHz SID clock.
+    # Run on the SID enable, not the faster FPGA clock, to keep the cutoff fixed.
+    with m.If(self.clk_1mhz_ph1_en):
+      m.d.sync += dc.eq(dc + ((target - dc) >> 12))
+
+    return m
+
+
 class Sid(Elaboratable):
 
   def __init__(self):
@@ -316,8 +346,13 @@ class Sid(Elaboratable):
 
 
     wave = Signal(16)
+    m.submodules.u_volume_dac = u_volume_dac = VolumeDac()
+    m.d.comb += [
+        u_volume_dac.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_volume_dac.i_volume.eq(r_d418[0:4])
+    ]
     m.d.sync += wave.eq(voice1[7:21].as_signed() + voice2[7:21].as_signed() + voice3[7:21].as_signed())
-    m.d.sync += self.o_wave.eq((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4)
+    m.d.sync += self.o_wave.eq(((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4) + u_volume_dac.o_wave)
 
     with m.Switch(self.i_addr):
       with m.Case(0x19):

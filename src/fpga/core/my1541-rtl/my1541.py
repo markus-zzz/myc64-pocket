@@ -240,6 +240,10 @@ import os
 if __name__ == "__main__":
 
   my1541 = My1541()
+  # Keep the core_top.v ABI stable without automatic Python name inference.
+  for name, signal in vars(my1541).items():
+    if isinstance(signal, Signal):
+      signal.name = name
 
   with open("my1541.v", "w") as f:
     f.write(verilog.convert(elaboratable=my1541, name='my1541_top', ports=my1541.ports))

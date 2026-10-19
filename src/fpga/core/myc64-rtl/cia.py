@@ -33,11 +33,13 @@ class Cia(Elaboratable):
     self.o_pa = Signal(8)
     self.i_pb = Signal(8)
     self.o_pb = Signal(8)
+    # An unconnected CNT pin idles high.
+    self.i_cnt = Signal(reset=1)
     self.o_irq = Signal()
 
     self.ports = [
         self.clk_1mhz_ph_en, self.i_cs, self.i_addr, self.i_we, self.i_data,
-        self.o_data, self.i_pa, self.o_pa, self.i_pb, self.o_pb, self.o_irq
+        self.o_data, self.i_pa, self.o_pa, self.i_pb, self.o_pb, self.i_cnt, self.o_irq
     ]
 
   def elaborate(self, platform):
@@ -125,6 +127,13 @@ class Cia(Elaboratable):
 
     timer_a_force_load = Signal()
     timer_b_force_load = Signal()
+    cnt_previous = Signal(reset=1)
+    cnt_rising = ~cnt_previous & self.i_cnt
+    timer_a_tick = Mux(cra_inmode, cnt_rising, 1)
+    timer_b_tick = Signal()
+
+    with m.If(self.clk_1mhz_ph_en):
+      m.d.sync += cnt_previous.eq(self.i_cnt)
 
     # bus writes
     with m.If(self.clk_1mhz_ph_en & self.i_cs & self.i_we):
@@ -141,10 +150,14 @@ class Cia(Elaboratable):
           m.d.sync += reg_ta_lo.eq(self.i_data)
         with m.Case(Reg.TA_HI):
           m.d.sync += reg_ta_hi.eq(self.i_data)
+          with m.If(~cra_start):
+            m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, self.i_data))
         with m.Case(Reg.TB_LO):
           m.d.sync += reg_tb_lo.eq(self.i_data)
         with m.Case(Reg.TB_HI):
           m.d.sync += reg_tb_hi.eq(self.i_data)
+          with m.If(~crb_start):
+            m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, self.i_data))
         # Skip a few for now
         with m.Case(Reg.ICR):
           with m.If(self.i_data[7]): # SET
@@ -153,10 +166,10 @@ class Cia(Elaboratable):
             m.d.sync += icr_mask.eq(icr_mask & ~self.i_data[0:5])
         with m.Case(Reg.CRA):
           m.d.comb += timer_a_force_load.eq(self.i_data[4])
-          m.d.sync += reg_cra.eq(self.i_data)
+          m.d.sync += reg_cra.eq(self.i_data & 0xef)
         with m.Case(Reg.CRB):
           m.d.comb += timer_b_force_load.eq(self.i_data[4])
-          m.d.sync += reg_crb.eq(self.i_data)
+          m.d.sync += reg_crb.eq(self.i_data & 0xef)
 
     # bus reads
     with m.If(self.clk_1mhz_ph_en & self.i_cs & ~self.i_we):
@@ -191,31 +204,50 @@ class Cia(Elaboratable):
 
     # Timer A
     timer_a_zero = Signal()
-    timer_a_reload = Signal()
-    m.d.comb += [timer_a_zero.eq(timer_a_cntr == 0), timer_a_reload.eq(timer_a_force_load | (cra_start & ~cra_runmode & timer_a_zero))]
+    timer_a_underflow = Signal()
+    m.d.comb += [
+        timer_a_zero.eq(timer_a_cntr == 0),
+        timer_a_underflow.eq(cra_start & timer_a_tick & timer_a_zero & ~timer_a_force_load)
+    ]
+
+    # Timer B input modes: PHI2, CNT rising, A underflow, A underflow while CNT is high.
+    # Qualify the underflow as well as the decrement; a zero counter must not
+    # interrupt until the selected clock source actually ticks.
+    with m.Switch(crb_inmode):
+      with m.Case(0):
+        m.d.comb += timer_b_tick.eq(1)
+      with m.Case(1):
+        m.d.comb += timer_b_tick.eq(cnt_rising)
+      with m.Case(2):
+        m.d.comb += timer_b_tick.eq(timer_a_underflow)
+      with m.Case(3):
+        m.d.comb += timer_b_tick.eq(timer_a_underflow & self.i_cnt)
     with m.If(self.clk_1mhz_ph_en):
-      with m.If(cra_start):
+      with m.If(timer_a_force_load):
+        m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, reg_ta_hi))
+      with m.Elif(cra_start & timer_a_tick):
         with m.If(timer_a_zero):
-          m.d.sync += icr_status_ta.eq(1) # XXX: Should be moved down to have highest priority (priority over bus read at least)
+          m.d.sync += icr_status_ta.eq(1)
+          m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, reg_ta_hi))
           with m.If(cra_runmode): # ONE-SHOT
             m.d.sync += cra_start.eq(0)
-        m.d.sync += timer_a_cntr.eq(timer_a_cntr - 1)
-      with m.If(timer_a_reload):
-        m.d.sync += timer_a_cntr.eq(Cat(reg_ta_lo, reg_ta_hi))
+        with m.Else():
+          m.d.sync += timer_a_cntr.eq(timer_a_cntr - 1)
 
     # Timer B
     timer_b_zero = Signal()
-    timer_b_reload = Signal()
-    m.d.comb += [timer_b_zero.eq(timer_b_cntr == 0), timer_b_reload.eq(timer_b_force_load | (crb_start & ~crb_runmode & timer_b_zero))]
+    m.d.comb += timer_b_zero.eq(timer_b_cntr == 0)
     with m.If(self.clk_1mhz_ph_en):
-      with m.If(crb_start):
+      with m.If(timer_b_force_load):
+        m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, reg_tb_hi))
+      with m.Elif(crb_start & timer_b_tick):
         with m.If(timer_b_zero):
-          m.d.sync += icr_status_tb.eq(1) # XXX: Should be moved down to have highest priority (priority over bus read at least)
+          m.d.sync += icr_status_tb.eq(1)
+          m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, reg_tb_hi))
           with m.If(crb_runmode): # ONE-SHOT
             m.d.sync += crb_start.eq(0)
-        m.d.sync += timer_b_cntr.eq(timer_b_cntr - 1)
-      with m.If(timer_b_reload):
-        m.d.sync += timer_b_cntr.eq(Cat(reg_tb_lo, reg_tb_hi))
+        with m.Else():
+          m.d.sync += timer_b_cntr.eq(timer_b_cntr - 1)
 
     m.d.comb += [self.o_pa.eq(reg_pra), self.o_pb.eq(reg_prb)]
 
