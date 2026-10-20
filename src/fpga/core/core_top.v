@@ -573,7 +573,9 @@ module core_top (
       .o_iec_data_out(iec_c64_data_out),
       .i_iec_clock_in(iec_clock),
       .o_iec_clock_out(iec_c64_clock_out),
-      .i_cart_type(c64_ctrl[6:5]),
+      .i_cart_type({c64_ctrl[15], c64_ctrl[7:5]}),
+      .i_cart_ocean_bank_mask(c64_ctrl[13:8]),
+      .i_cart_ocean_8k(c64_ctrl[14]),
       .o_cart_addr(c64_cart_addr),
       .o_cart_we(c64_cart_we),
       .i_cart_data(c64_cart_idata),
@@ -913,12 +915,14 @@ module core_top (
       osd_ctrl <= cpu_mem_wdata;
   end
 
-  reg [6:0] c64_ctrl;
+  // [0] reset, [4:1] joysticks, [7:5] mapper low, [13:8] Ocean mask,
+  // [14] Ocean 8K, [15] mapper high.
+  reg [15:0] c64_ctrl;
   reg [12:0] c1541_track_len;
   always @(posedge clk_8mhz) begin
     if (rst) c64_ctrl <= 0;
     else if (cpu_mem_addr == 32'h3000000c && cpu_mem_valid && cpu_mem_wstrb == 4'b1111)
-      c64_ctrl <= cpu_mem_wdata[6:0];
+      c64_ctrl <= cpu_mem_wdata[15:0];
     else if (cpu_mem_addr == 32'h30000104 && cpu_mem_valid && cpu_mem_wstrb == 4'b1111) begin
       c1541_track_len <= cpu_mem_wdata[12:0];
       $display("track_len: %d, track_no: %d", c1541_track_len, c1541_track_no);
@@ -963,7 +967,7 @@ module core_top (
 
   // ROM - CPU code.
   sprom #(
-      .aw(11),
+      .aw(12),
       .dw(32),
       .MEM_INIT_FILE("bios.vh")
   ) u_rom (

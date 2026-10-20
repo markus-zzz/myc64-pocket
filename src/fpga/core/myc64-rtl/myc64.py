@@ -26,10 +26,13 @@ from sid import Sid
 
 class Cartridge(Elaboratable):
   def __init__(self):
-    self.i_cart_type = Signal(2)
+    self.i_cart_type = Signal(4)
+    self.i_ocean_bank_mask = Signal(6)
+    self.i_ocean_8k = Signal()
 
     self.i_addr = Signal(16)
     self.i_we = Signal()
+    self.i_re = Signal()
     self.i_data = Signal(8)
     self.o_data = Signal(8)
 
@@ -55,6 +58,9 @@ class Cartridge(Elaboratable):
 
     reg_de00 = Signal(8)
     reg_de02 = Signal(8)
+    new_bank = Signal(6)
+    disabled = Signal()
+    locked = Signal()
 
     m.d.comb += [self.o_exrom.eq(1), self.o_game.eq(1)]
     m.d.comb += [self.o_mem_we.eq(0)]
@@ -95,6 +101,61 @@ class Cartridge(Elaboratable):
         with m.If(self.i_io2): #reg_de00[5] &
           m.d.comb += [self.o_mem_addr.eq(0x11f00 + self.i_addr[0:8]), self.o_mem_we.eq(self.i_we)]
 
+      with m.Case(4): # Ocean: one selected bank shared by ROML and ROMH.
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(self.i_ocean_8k)]
+        # IO1 is mirrored across $DE00-$DEFF; high data bits do not disable it.
+        with m.If(self.i_io1 & self.i_we):
+          m.d.sync += reg_de00.eq(self.i_data)
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], reg_de00[0:6] & self.i_ocean_bank_mask))
+
+      with m.Case(5, 6, 7): # Generic 8K, generic 16K, Ultimax.
+        m.d.comb += [
+            self.o_exrom.eq(self.i_cart_type == 7),
+            self.o_game.eq(self.i_cart_type == 5),
+            self.o_mem_addr.eq(Cat(self.i_addr[0:13], C(0, 6), self.i_romh))
+        ]
+
+      # Reference: VICE vice/src/c64/cart/{dinamic,gs,funplay,supergames,zaxxon}.c.
+      # Only new mappers consume the phase-qualified CPU read strobe.
+      with m.Case(8): # Dinamic: no mirrors outside $DE00-$DE0F.
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+        with m.If(self.i_io1 & self.i_re & (self.i_addr[4:8] == 0)):
+          m.d.sync += new_bank.eq(self.i_addr[0:4])
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], new_bank[0:4]))
+
+      with m.Case(9): # C64GS: any IO1 access selects the low six address bits.
+        # Current VICE confirms C64GS 4-in-1; System 3 hardware is uncertain.
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(1)]
+        with m.If(self.i_io1 & (self.i_we | self.i_re)):
+          m.d.sync += new_bank.eq(self.i_addr[0:6])
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], new_bank))
+
+      with m.Case(10): # Fun Play: same permutation in CRT and IO1 register.
+        # VICE notes that physical enable/disable behavior needs confirmation.
+        m.d.comb += [self.o_exrom.eq(disabled), self.o_game.eq(1)]
+        with m.If(self.i_io1 & self.i_we):
+          m.d.sync += new_bank.eq(Cat(self.i_data[3:6], self.i_data[0]))
+          with m.If((self.i_data & 0xc6) == 0):
+            m.d.sync += disabled.eq(0)
+          with m.Elif((self.i_data & 0xc6) == 0x86):
+            m.d.sync += disabled.eq(1)
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], new_bank[0:4]))
+
+      with m.Case(11): # Super Games: paired 16K banks, reset-only IO2 lock.
+        m.d.comb += [self.o_exrom.eq(disabled), self.o_game.eq(disabled)]
+        with m.If(self.i_io2 & self.i_we & ~locked):
+          m.d.sync += [new_bank.eq(self.i_data[0:2]),
+                       disabled.eq(self.i_data[2]), locked.eq(self.i_data[3])]
+        m.d.comb += self.o_mem_addr.eq(Cat(self.i_addr[0:13], new_bank[0:2], C(0, 4), self.i_romh))
+
+      with m.Case(12): # Zaxxon: 4K ROML mirror, reads select one of two ROMHs.
+        m.d.comb += [self.o_exrom.eq(0), self.o_game.eq(0)]
+        with m.If(self.i_roml & self.i_re & (self.i_addr[13:16] == 4)):
+          m.d.sync += new_bank.eq(self.i_addr[12])
+        m.d.comb += self.o_mem_addr.eq(Mux(
+            self.i_romh, Cat(self.i_addr[0:13], new_bank[0], C(0, 5), C(1, 1)),
+            self.i_addr[0:12]))
+
     return m
 
 
@@ -127,7 +188,9 @@ class MyC64(Elaboratable):
     self.i_iec_clock_in = Signal()
     self.o_iec_clock_out = Signal()
 
-    self.i_cart_type = Signal(2)
+    self.i_cart_type = Signal(4)
+    self.i_cart_ocean_bank_mask = Signal(6)
+    self.i_cart_ocean_8k = Signal()
     self.o_cart_addr = Signal(21)
     self.o_cart_we = Signal()
     self.i_cart_data = Signal(8)
@@ -145,7 +208,8 @@ class MyC64(Elaboratable):
         self.o_bus_addr, self.i_rom_char_data, self.i_rom_basic_data, self.i_rom_kernal_data,
         self.i_ram_main_data, self.o_ram_main_data, self.o_ram_main_we,
         self.o_iec_atn_out, self.i_iec_data_in , self.o_iec_data_out, self.i_iec_clock_in, self.o_iec_clock_out,
-        self.i_cart_type, self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data,
+        self.i_cart_type, self.i_cart_ocean_bank_mask, self.i_cart_ocean_8k,
+        self.o_cart_addr, self.o_cart_we, self.i_cart_data, self.o_cart_data,
         self.o_debug_6510_valid, self.o_debug_6510_sync, self.o_debug_6510_addr, self.o_debug_6510_data, self.o_debug_6510_regs
     ]
 
@@ -212,9 +276,12 @@ class MyC64(Elaboratable):
 
     m.d.comb += [
         u_cart.i_cart_type.eq(self.i_cart_type),
+        u_cart.i_ocean_bank_mask.eq(self.i_cart_ocean_bank_mask),
+        u_cart.i_ocean_8k.eq(self.i_cart_ocean_8k),
         u_cart.i_addr.eq(bus_addr),
         u_cart.i_data.eq(bus_do),
         u_cart.i_we.eq(bus_we),
+        u_cart.i_re.eq(self.i_clk_1mhz_ph2_en & ~vic_cycle & ~u_vic.o_steal_bus & ~cpu_we),
         self.o_cart_addr.eq(u_cart.o_mem_addr),
         u_cart.i_mem_data.eq(self.i_cart_data),
         self.o_cart_data.eq(u_cart.o_mem_data),
@@ -367,7 +434,13 @@ class MyC64(Elaboratable):
         self.o_iec_data_out.eq(~u_cia2.o_pa[5]),
     ]
 
-    with m.If((bus_addr[12:16] == 0b0001) | (bus_addr[12:16] == 0b1001)):
+    # In Ultimax, VIC relative $3000-$3FFF comes from the upper half of ROMH,
+    # independently of CIA2's VIC RAM-bank selection.
+    ultimax = ~u_cart.o_game & u_cart.o_exrom
+    vic_cart_read = ultimax & (vic_cycle | u_vic.o_steal_bus) & (u_vic.o_addr[12:14] == 3)
+    with m.If(vic_cart_read):
+      m.d.comb += [u_cart.i_romh.eq(1), u_vic.i_data.eq(Cat(u_cart.o_data, u_ram_color_rp.data))]
+    with m.Elif(~ultimax & ((bus_addr[12:16] == 0b0001) | (bus_addr[12:16] == 0b1001))):
       m.d.comb += u_vic.i_data.eq(Cat(self.i_rom_char_data, u_ram_color_rp.data))
     with m.Else():
       m.d.comb += u_vic.i_data.eq(Cat(self.i_ram_main_data, u_ram_color_rp.data))
