@@ -23,6 +23,7 @@ from amaranth import *
 from enum import IntEnum, unique
 from typing import NamedTuple
 from utils.regs import RegisterFile
+from sid_filter import SidFilter, saturate
 
 
 class WaveformGenerator(Elaboratable):
@@ -37,6 +38,7 @@ class WaveformGenerator(Elaboratable):
     self.i_noise_en = Signal()
     self.i_hard_sync = Signal()
     self.i_ring_mod = Signal()
+    self.i_test = Signal()
     self.i_prev_osc_msb = Signal()
     self.o_osc_msb = Signal()
     self.o_wave = Signal(12)
@@ -60,20 +62,22 @@ class WaveformGenerator(Elaboratable):
 
     with m.If(self.clk_1mhz_ph1_en):
       m.d.sync += prev_osc_msb_d.eq(self.i_prev_osc_msb)
-      with m.If(self.i_hard_sync & ~prev_osc_msb_d & self.i_prev_osc_msb):
+      with m.If(self.i_test | (self.i_hard_sync & ~prev_osc_msb_d & self.i_prev_osc_msb)):
         m.d.sync += phase_accum.eq(0)
       with m.Else():
         m.d.sync += phase_accum.eq(phase_accum + self.i_frequency)
 
-      m.d.sync += lfsr_clk_d.eq(lfsr_clk)
-      with m.If(~lfsr_clk_d & lfsr_clk):
+      # Preserve the existing noise model, but do not clock it while TEST holds phase.
+      m.d.sync += lfsr_clk_d.eq(Mux(self.i_test, 0, lfsr_clk))
+      with m.If(~self.i_test & ~lfsr_clk_d & lfsr_clk):
         m.d.sync += lfsr.eq(Cat(feedback, lfsr[0:22]))
 
     m.d.comb += wave_sawtooth.eq(phase_accum[12:24])
-    m.d.comb += wave_triangle.eq(
-        Cat(C(0, 1),
-            Mux(self.i_ring_mod, self.i_prev_osc_msb, phase_accum[23]).replicate(11) ^ phase_accum[12:23]))
-    m.d.comb += wave_pulse.eq(Mux(phase_accum[12:24] <= self.i_duty_cycle, C(0xfff, 12), C(0, 12)))
+    # reSID's triangle index XORs the carrier MSB with the complemented source
+    # MSB when ring modulation is active and sawtooth is not selected.
+    triangle_msb = phase_accum[23] ^ (self.i_ring_mod & ~self.i_sawtooth_en & ~self.i_prev_osc_msb)
+    m.d.comb += wave_triangle.eq(Cat(C(0, 1), triangle_msb.replicate(11) ^ phase_accum[12:23]))
+    m.d.comb += wave_pulse.eq(Mux(self.i_test | (phase_accum[12:24] <= self.i_duty_cycle), C(0xfff, 12), C(0, 12)))
     m.d.comb += wave_noise.eq(lfsr[11:23])
 
     m.d.comb += self.o_wave.eq(~(~Mux(self.i_sawtooth_en, wave_sawtooth, 0) & ~Mux(self.i_triangle_en, wave_triangle, 0)
@@ -155,7 +159,7 @@ class EnvelopeGenerator(Elaboratable):
           with m.If(~self.i_gate):
             m.d.sync += freq_div.eq(map_release)
             m.next = 'release'
-          with m.Elif(cntr == Cat(C(0, 4), self.i_sustain)):
+          with m.Elif(cntr == Cat(self.i_sustain, self.i_sustain)):
             m.next = 'sustain'
           with m.Elif(freq_div == 0):
             m.d.sync += cntr.eq(cntr - 1)
@@ -165,7 +169,7 @@ class EnvelopeGenerator(Elaboratable):
         #
         with m.State('sustain'):
           # Track self.i_sustain (counting down only)
-          with m.If(cntr > Cat(C(0, 4), self.i_sustain)):
+          with m.If(cntr > Cat(self.i_sustain, self.i_sustain)):
             m.d.sync += cntr.eq(cntr - 1)
           with m.If(~self.i_gate):
             m.d.sync += freq_div.eq(map_release)
@@ -182,6 +186,36 @@ class EnvelopeGenerator(Elaboratable):
           with m.Elif(freq_div == 0):
             m.d.sync += cntr.eq(cntr - 1)
             m.d.sync += freq_div.eq(map_release)
+
+    return m
+
+
+class VolumeDac(Elaboratable):
+  """Approximate the 6581's volume-dependent output offset for digi samples."""
+
+  def __init__(self):
+    self.clk_1mhz_ph1_en = Signal()
+    self.i_volume = Signal(4)
+    self.o_wave = Signal(signed(16))
+
+  def elaborate(self, platform):
+    m = Module()
+
+    # 256 output units per volume step leaves headroom beside all three voices.
+    # This is a compatibility approximation, not a measured analog SID model.
+    level = Signal(signed(16))
+    dc = Signal(signed(25))
+    target = Signal(signed(25))
+    m.d.comb += [
+        level.eq(self.i_volume << 8),
+        target.eq(level << 12),
+        self.o_wave.eq(level - (dc >> 12))
+    ]
+
+    # AC coupling AFTER volume modulation: about 38 Hz at a 1 MHz SID clock.
+    # Run on the SID enable, not the faster FPGA clock, to keep the cutoff fixed.
+    with m.If(self.clk_1mhz_ph1_en):
+      m.d.sync += dc.eq(dc + ((target - dc) >> 12))
 
     return m
 
@@ -229,6 +263,9 @@ class Sid(Elaboratable):
     r_d413 = rf.addRegRW(addr=0xd413, width=8)  # Voice 3 Attack and Decay length.
     r_d414 = rf.addRegRW(addr=0xd414, width=8)  # Voice 3 Sustain volume and Release length.
 
+    r_d415 = rf.addRegRW(addr=0xd415, width=3)  # Filter cutoff low bits.
+    r_d416 = rf.addRegRW(addr=0xd416, width=8)  # Filter cutoff high bits.
+    r_d417 = rf.addRegRW(addr=0xd417, width=8)  # Resonance and voice/external routing.
     r_d418 = rf.addRegRW(addr=0xd418, width=8)  # Volume and filter modes.
 
     tmp_bus_wen = (self.clk_1mhz_ph1_en & self.i_cs & self.i_we)
@@ -251,6 +288,7 @@ class Sid(Elaboratable):
         u_wave1.i_duty_cycle.eq(Cat(r_d402, r_d403)),
         u_wave1.i_hard_sync.eq(r_d404[1]),
         u_wave1.i_ring_mod.eq(r_d404[2]),
+        u_wave1.i_test.eq(r_d404[3]),
         u_wave1.i_triangle_en.eq(r_d404[4]),
         u_wave1.i_sawtooth_en.eq(r_d404[5]),
         u_wave1.i_pulse_en.eq(r_d404[6]),
@@ -275,6 +313,7 @@ class Sid(Elaboratable):
         u_wave2.i_duty_cycle.eq(Cat(r_d409, r_d40a)),
         u_wave2.i_hard_sync.eq(r_d40b[1]),
         u_wave2.i_ring_mod.eq(r_d40b[2]),
+        u_wave2.i_test.eq(r_d40b[3]),
         u_wave2.i_triangle_en.eq(r_d40b[4]),
         u_wave2.i_sawtooth_en.eq(r_d40b[5]),
         u_wave2.i_pulse_en.eq(r_d40b[6]),
@@ -299,6 +338,7 @@ class Sid(Elaboratable):
         u_wave3.i_duty_cycle.eq(Cat(r_d410, r_d411)),
         u_wave3.i_hard_sync.eq(r_d412[1]),
         u_wave3.i_ring_mod.eq(r_d412[2]),
+        u_wave3.i_test.eq(r_d412[3]),
         u_wave3.i_triangle_en.eq(r_d412[4]),
         u_wave3.i_sawtooth_en.eq(r_d412[5]),
         u_wave3.i_pulse_en.eq(r_d412[6]),
@@ -312,12 +352,43 @@ class Sid(Elaboratable):
         u_env3.i_sustain.eq(r_d414[4:8]),
         u_env3.i_release.eq(r_d414[0:4])
     ]
-    m.d.comb += voice3.eq(Mux(r_d418[7], 0, (u_wave3.o_wave - C(0x800, 12)).as_signed() * u_env3.o_envelope.as_unsigned()))
+    m.d.comb += voice3.eq((u_wave3.o_wave - C(0x800, 12)).as_signed() * u_env3.o_envelope.as_unsigned())
 
+    # Keep the existing signed 14-bit slices verbatim: changing centering or
+    # slicing the waveform before envelope multiplication changes the dry sound.
+    voices = [voice1[7:21].as_signed(), voice2[7:21].as_signed(), voice3[7:21].as_signed()]
+    filtered_input = Signal(signed(16))
+    dry = Signal(signed(16))
+    m.d.comb += [
+        filtered_input.eq(sum(Mux(r_d417[index], voice, 0) for index, voice in enumerate(voices))),
+        dry.eq(sum(Mux(~r_d417[index] & (~r_d418[7] if index == 2 else 1), voice, 0)
+                   for index, voice in enumerate(voices)))
+    ]
+    m.submodules.u_filter = u_filter = SidFilter()
+    m.d.comb += [
+        u_filter.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_filter.i_wave.eq(filtered_input),
+        u_filter.i_cutoff.eq(Cat(r_d415, r_d416)),
+        u_filter.i_resonance.eq(r_d417[4:8]),
+        u_filter.i_modes.eq(r_d418[4:7])
+    ]
+    # D417 bit 3 routes the external input, which is zero on this core. Routed
+    # voices never enter the dry mix, even with no output modes selected.
+    # Voice 3 OFF suppresses only the dry path, not its filter excitation.
+    mixed = Signal(signed(16))
+    saturate(m, mixed, dry + u_filter.o_wave)
 
     wave = Signal(16)
-    m.d.sync += wave.eq(voice1[7:21].as_signed() + voice2[7:21].as_signed() + voice3[7:21].as_signed())
-    m.d.sync += self.o_wave.eq((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4)
+    m.submodules.u_volume_dac = u_volume_dac = VolumeDac()
+    m.d.comb += [
+        u_volume_dac.clk_1mhz_ph1_en.eq(self.clk_1mhz_ph1_en),
+        u_volume_dac.i_volume.eq(r_d418[0:4])
+    ]
+    # Preserve both original FPGA-clock pipeline stages and VolumeDac path.
+    m.d.sync += wave.eq(mixed)
+    final_output = Signal(signed(16))
+    saturate(m, final_output, ((wave.as_signed() * r_d418[0:4].as_unsigned()) >> 4) + u_volume_dac.o_wave)
+    m.d.sync += self.o_wave.eq(final_output)
 
     with m.Switch(self.i_addr):
       with m.Case(0x19):
