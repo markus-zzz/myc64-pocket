@@ -318,6 +318,7 @@ class MyC64(Elaboratable):
     m.d.comb += [
         u_cpu.i_data.eq(cpu_di),
         u_cpu.i_irq.eq(u_cia1.o_irq | u_vic.o_irq),
+        u_cpu.i_nmi.eq(u_cia2.o_irq),
         cpu_addr.eq(u_cpu.o_addr),
         cpu_we.eq(u_cpu.o_we),
         cpu_do.eq(u_cpu.o_data),
