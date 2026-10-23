@@ -49,6 +49,11 @@
 #define KEYB_MASK_0 ((volatile uint32_t *)0x30000004)
 #define KEYB_MASK_1 ((volatile uint32_t *)0x30000008)
 #define C64_CTRL ((volatile uint32_t *)0x3000000c)
+#define C64_CART_TYPE_SHIFT 5
+#define C64_CART_TYPE_WIDTH 3
+#define C64_CART_TYPE_HIGH_SHIFT 15
+#define C64_OCEAN_MASK_SHIFT 8
+#define C64_OCEAN_8K_SHIFT 14
 
 #define C1541_STATUS ((volatile uint32_t *)0x30000100)
 #define C1541_TRACK_LEN ((volatile uint32_t *)0x30000104)
